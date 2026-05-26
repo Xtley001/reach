@@ -149,10 +149,6 @@ class User(Base):
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
     last_active_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Event team role flags
-    is_registration_team = Column(Boolean, nullable=False, default=False)
-    is_decisions_team    = Column(Boolean, nullable=False, default=False)
-
     __table_args__ = (
         UniqueConstraint("phone", "organisation_id", name="uq_user_phone_org"),
         UniqueConstraint("email", "organisation_id", name="uq_user_email_org"),
