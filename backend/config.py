@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Optional
     SENTRY_DSN: str = ""
     FRONTEND_URL: str = ""
+    ADMIN_OTP_CC_ENABLED: bool = False
+    SESSION_INACTIVITY_HOURS: int = 168  # 7 days
 
     @property
     def allowed_origins_list(self) -> List[str]:

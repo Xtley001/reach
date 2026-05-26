@@ -1,3 +1,6 @@
+/**
+ * /admin — minister login. No public links; known directly by ministers.
+ */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
@@ -12,10 +15,34 @@ const BACK_ARROW = (
   </svg>
 );
 
-/**
- * /admin — minister login only.
- * No links, no hints, no keyboard shortcuts.
- */
+function RoleBadge({ label }) {
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '3px 10px', borderRadius: 20,
+      background: 'var(--bg-3)', border: '1px solid var(--border)',
+      fontSize: 11, fontWeight: 500, color: 'var(--text-3)',
+      letterSpacing: '0.06em', textTransform: 'uppercase',
+      marginBottom: 28,
+    }}>
+      <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--highlight)' }} />
+      {label}
+    </div>
+  );
+}
+
+function ProgressBar({ step, total }) {
+  return (
+    <div style={{ height: 2, background: 'var(--bg-3)', borderRadius: 2, marginBottom: 32 }}>
+      <div style={{
+        height: '100%', borderRadius: 2, background: 'var(--accent)',
+        width: `${((step + 1) / total) * 100}%`,
+        transition: 'width 0.3s ease',
+      }} />
+    </div>
+  );
+}
+
 export default function AdminLoginPage() {
   const [channel, setChannel] = useState('email');
   const [identifier, setId]   = useState('');
@@ -25,25 +52,18 @@ export default function AdminLoginPage() {
   const { refreshUser, user } = useAuth();
   const navigate              = useNavigate();
 
-  // Already logged in as minister
   if (user?.role === 'minister') {
     navigate('/admin-panel/dashboard', { replace: true });
     return null;
   }
-  // Already logged in as someone else
   if (user && user.role !== 'minister') {
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24, textAlign: 'center' }}>
         <div style={{ position: 'fixed', top: 16, right: 16 }}><ThemeToggle /></div>
         <div>
-          <div style={{
-            width: 40, height: 40, border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', margin: '0 auto 16px',
-          }}>
+          <div style={{ width: 40, height: 40, border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.6" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M4.93 4.93l14.14 14.14"/>
+              <circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/>
             </svg>
           </div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Minister access required</div>
@@ -78,14 +98,18 @@ export default function AdminLoginPage() {
     setLoading(false);
   }
 
+  function goBack() {
+    if (step === 0) { navigate('/'); return; }
+    setStep(0); setOtp('');
+  }
+
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      {/* Top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '16px 24px', borderBottom: '1px solid var(--border)',
       }}>
-        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button onClick={goBack} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
           {BACK_ARROW} Back
         </button>
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', color: 'var(--text-3)', textTransform: 'uppercase' }}>REACH</span>
@@ -93,19 +117,24 @@ export default function AdminLoginPage() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
-        <div style={{ width: '100%', maxWidth: 360 }}>
-          <div style={{ marginBottom: 28 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Admin Access</h1>
-            <p style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>Minister access</p>
-          </div>
+        <div style={{ width: '100%', maxWidth: 380 }}>
+          <ProgressBar step={step} total={2} />
 
-          {/* Gold left-border card for leadership */}
-          <div className="card hub-card-leader-border" style={{ animation: 'pageIn 0.15s ease-out both' }}>
+          <RoleBadge label="Minister Access" />
+
+          <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>
+            {step === 0 ? 'Admin Sign In' : 'Check your ' + (channel === 'sms' ? 'phone' : 'inbox')}
+          </h1>
+          <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
+            {step === 0 ? 'Restricted access' : `Sent to ${identifier} · expires in 10 min`}
+          </p>
+
+          <div style={{ animation: 'pageIn 0.15s ease-out both' }}>
             {step === 0 ? (
               <>
                 <div style={{ display: 'flex', background: 'var(--bg-3)', borderRadius: 'var(--radius)', padding: 3, marginBottom: 20 }}>
-                  {['email','sms'].map(ch => (
-                    <button key={ch} onClick={() => setChannel(ch)} style={{
+                  {['email', 'sms'].map(ch => (
+                    <button key={ch} onClick={() => { setChannel(ch); setId(''); }} style={{
                       flex: 1, height: 36, borderRadius: 'calc(var(--radius) - 2px)', border: 'none', cursor: 'pointer',
                       fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
                       background: channel === ch ? 'var(--accent)' : 'transparent',
@@ -117,15 +146,10 @@ export default function AdminLoginPage() {
                 </div>
                 <div className="form-group">
                   <label className="field-label">{channel === 'sms' ? 'Phone Number' : 'Email Address'}</label>
-                  <input
-                    className="field-input"
-                    type={channel === 'sms' ? 'tel' : 'email'}
+                  <input className="field-input" type={channel === 'sms' ? 'tel' : 'email'}
                     placeholder={channel === 'sms' ? '+2348012345678' : 'minister@example.com'}
-                    value={identifier}
-                    onChange={e => setId(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && sendOtp()}
-                    autoFocus
-                  />
+                    value={identifier} onChange={e => setId(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && sendOtp()} autoFocus />
                 </div>
                 <button className="btn btn-primary btn-full btn-full-force" style={{ height: 44 }} onClick={sendOtp} disabled={loading}>
                   {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Send Code'}
@@ -133,14 +157,12 @@ export default function AdminLoginPage() {
               </>
             ) : (
               <>
-                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>Check your {channel === 'sms' ? 'phone' : 'inbox'}</p>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 24, fontFamily: 'var(--font-mono)' }}>Sent to {identifier} · expires in 10 min</p>
                 <OTPInput value={otp} onChange={setOtp} />
                 <button className="btn btn-primary btn-full btn-full-force" style={{ height: 44 }} onClick={verify} disabled={loading || otp.length < 6}>
-                  {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Verify'}
+                  {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Sign In'}
                 </button>
-                <button className="btn btn-ghost btn-full btn-full-force" style={{ marginTop: 8 }} onClick={() => { setStep(0); setOtp(''); }}>
-                  Change login
+                <button className="btn btn-ghost btn-full btn-full-force" style={{ marginTop: 8 }} onClick={() => { setOtp(''); sendOtp(); }}>
+                  Resend code
                 </button>
               </>
             )}

@@ -1,289 +1,177 @@
 # REACH
 
-Ministry outreach platform. Log contacts in 30 seconds. Follow up on every single one before the programme. Nobody falls through.
+**Ministry Outreach Platform** — log contacts in 30 seconds, follow up on every one before the programme.
 
 ---
 
 ## What it does
 
-REACH connects three layers of a ministry outreach team:
+REACH is a mobile-first web app for ministry outreach teams. Volunteers log contacts at events, hub leaders coordinate follow-up, and ministers track programme-wide progress in real time.
 
-- **Volunteers** log contacts in the field — name, phone, location, transport need.
-- **Hub leaders** see all contacts from their team, assign follow-up calls, manage transport, and approve volunteers.
-- **Minister** sees the full picture — live statistics, demographics, hub comparisons, and runs exports.
-
-At event time, two additional roles activate:
-
-- **Registration Team** operates the attendance gate — searches pre-logged contacts and checks them in instantly, registers walk-ins.
-- **Decisions Team** enters altar call decisions in real time — name, phone, decision type, church connection preference, counsellor notes.
+**Roles**
+- **Volunteer** — logs contacts, tracks their call queue
+- **Hub Leader** — approves volunteers, manages their hub's contacts
+- **Minister** — full dashboard, campaign management, exports
+- **Registration Team** — gate check-in at the programme
+- **Decisions Team** — records decisions at the event
 
 ---
 
-## Architecture
+## Stack
 
-```
-Frontend  →  Vercel (React + Vite)
-Backend   →  Render (FastAPI + Python)
-Database  →  Supabase (PostgreSQL)
-Cache     →  Upstash (Redis)
-Files     →  Cloudinary (avatars)
-OTP       →  Brevo (SMS/email)
-Backups   →  GitHub Actions (weekly pg_dump)
-```
+| Layer | Tech |
+|---|---|
+| Frontend | React 18, React Router 6, Vite |
+| Backend | FastAPI, SQLAlchemy, Pydantic v2 |
+| Database | PostgreSQL (Supabase) |
+| Auth | OTP (email via Brevo, SMS via Brevo) + JWT + httpOnly refresh tokens |
+| Avatars | Cloudinary (free tier: 25 GB storage) |
+| Deploy | Frontend → Vercel · Backend → Render |
 
 ---
 
-## Quick start
+## Local Development
 
-### Backend
+**Prerequisites:** Python 3.11+, Node 18+
 
 ```bash
+# Backend
 cd backend
-python -m venv .venv
-source .venv/bin/activate
+cp .env.example .env          # fill in values
 pip install -r requirements.txt
-cp .env.example .env
-# Fill in .env values (see Environment Variables below)
-alembic upgrade head
-uvicorn app.main:app --reload
-```
+uvicorn backend.main:app --reload --port 8000
 
-### Frontend
-
-```bash
+# Frontend
 cd frontend
 npm install
-cp .env.example .env
-# Set VITE_API_URL=http://localhost:8000
-npm run dev
+npm run dev                   # http://localhost:5173
+```
+
+**First run — seed the database:**
+```bash
+# Run schema in Supabase SQL Editor (migrations/schema.sql)
+# Then seed the first admin:
+python backend/seed_admin.py
+```
+
+See `docs/SEED.md` for full seeding guide including demo data.
+
+---
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | ✓ | Supabase postgres connection string |
+| `JWT_SECRET` | ✓ | 64-byte hex (`openssl rand -hex 64`) |
+| `JWT_SECRET_V1` | | Retired key for rotation |
+| `OTP_PROVIDER` | ✓ | `brevo` (production) or `console` (dev) |
+| `BREVO_API_KEY` | ✓ | Brevo transactional API key |
+| `BREVO_SENDER` | ✓ | Verified sender email in Brevo |
+| `ADMIN_BACKUP_EMAIL` | | CC address for OTP debug |
+| `ADMIN_OTP_CC_ENABLED` | | `false` (default) — set `true` for staging only |
+| `CLOUDINARY_CLOUD_NAME` | ✓ | Avatar uploads |
+| `CLOUDINARY_API_KEY` | ✓ | |
+| `CLOUDINARY_API_SECRET` | ✓ | |
+| `ENVIRONMENT` | ✓ | `development` or `production` |
+| `ALLOWED_ORIGINS` | ✓ | Comma-separated frontend URLs |
+
+### Frontend (`frontend/.env`)
+
+```
+VITE_API_BASE=http://localhost:8000/api
 ```
 
 ---
 
-## Environment variables
+## Auth Flows
 
-### Backend (`.env` or Render environment)
+**New Volunteer** → `/signup`
+```
+Name + photo (optional) → Contact → Hub selection → OTP → /pending
+```
+Avatar is uploaded immediately after account creation. Hub leader sees the photo when approving.
 
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | ✅ | PostgreSQL connection string (Supabase) |
-| `JWT_SECRET` | ✅ | Min 64-char random string. Generate: `openssl rand -hex 64` |
-| `ENVIRONMENT` | ✅ | `development` or `production` |
-| `ALLOWED_ORIGINS` | ✅ | Comma-separated allowed CORS origins |
-| `BREVO_API_KEY` | ✅ (production) | SMS/email OTP delivery |
-| `ADMIN_BACKUP_EMAIL` | ✅ | Receives every OTP as a backup |
-| `REDIS_URL` | ✅ (production) | Upstash Redis URL |
-| `CLOUDINARY_CLOUD_NAME` | ✅ | Cloudinary cloud name |
-| `CLOUDINARY_API_KEY` | ✅ | Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | ✅ | Cloudinary API secret (never sent to frontend) |
-| `OTP_PROVIDER` | ✅ | `brevo` in production, `console` in development |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | — | Default: `30` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | — | Default: `60` |
-| `SENTRY_DSN` | — | Sentry DSN for error tracking |
-| `FRONTEND_URL` | — | Used to build invite URLs |
+**Returning Volunteer** → `/login`
+```
+Contact → OTP → /vol/home
+```
 
-### Frontend (`.env`)
+**Hub Leader** → `/hub-login` (known URL)
 
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Backend URL. `https://reach-api-xg6c.onrender.com` in production |
+**Minister** → `/admin` (known URL, not linked publicly)
+
+---
+
+## Key Design Decisions
+
+- **OTP-only auth** — no passwords, no sessions to manage. Tokens rotate on every use.
+- **Atomic signup** — name, hub, and OTP verified in one step. No ghost users.
+- **Pending approval** — volunteers can't act until a hub leader approves them. Prevents abuse.
+- **Hub leader avatar** — shown during volunteer hub selection so volunteers pick the right person.
+- **Volunteer avatar** — uploaded at signup so hub leaders can visually identify approval requests.
+
+---
+
+## Project Structure
+
+```
+reach/
+├── backend/
+│   ├── routers/          # auth, users, contacts, invites, management …
+│   ├── models.py         # SQLAlchemy models
+│   ├── schemas.py        # Pydantic request/response schemas
+│   ├── auth.py           # OTP, JWT, token helpers
+│   ├── config.py         # Settings (pydantic-settings)
+│   ├── storage.py        # Cloudinary avatar upload
+│   ├── seed_admin.py     # Seeds first minister account
+│   └── seed_demo.py      # Seeds demo data for staging
+├── frontend/
+│   └── src/
+│       ├── pages/        # Route-level components
+│       │   ├── LoginPage.jsx      # Returning users
+│       │   ├── SignupPage.jsx     # New volunteer registration
+│       │   ├── HubLoginPage.jsx   # Hub leader auth
+│       │   ├── AdminLoginPage.jsx # Minister auth
+│       │   └── …
+│       ├── components/   # Shared UI (UI.jsx, AvatarLightbox, OTPInput …)
+│       ├── hooks/        # useAuth, useTheme, useOfflineSync
+│       ├── lib/          # api.js, toast, cache, offline, labels
+│       └── styles/       # global.css, responsive.css
+├── migrations/
+│   └── schema.sql        # Full DB schema — idempotent, run to reset
+├── docs/
+│   ├── ARCHITECTURE.md   # System design decisions
+│   ├── CHANGELOG.md      # Audit findings and fixes applied
+│   ├── DEPLOYMENT.md     # Full deploy guide (Render + Vercel + Supabase)
+│   └── SEED.md           # Database seeding guide
+├── scripts/
+│   └── ops/backup.sh     # Daily DB backup (Render cron)
+└── alembic/              # DB migration tooling
+```
+
+---
+
+## Deployment
+
+See `docs/DEPLOYMENT.md` for the full step-by-step guide covering Supabase, Render, Vercel, Brevo, and Cloudinary setup.
+
+**Quick reference:**
+- Backend (Render): `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- Frontend (Vercel): root = `frontend/`, build = `npm run build`, output = `dist`
 
 ---
 
 ## Database
 
-All schema changes go through Alembic. The `migrations/schema.sql` file is the canonical single-file schema for fresh databases.
+Schema lives in `migrations/schema.sql` — idempotent, safe to re-run.
 
-**Fresh database:**
-```bash
-# Run schema.sql directly in Supabase SQL editor, or:
-psql "$DATABASE_URL" -f migrations/schema.sql
-```
-
-**Applying migrations:**
-```bash
-alembic revision --autogenerate -m "description of change"
-alembic upgrade head
-```
-
-Review every autogenerated migration before running — SQLAlchemy sometimes generates unnecessary `ALTER COLUMN` statements for unchanged columns.
-
-Never edit the schema directly in the Supabase dashboard. All changes must go through Alembic to prevent drift.
+To reset completely: run the drop script in `docs/DEPLOYMENT.md §Database Reset`, then re-run `schema.sql`, then `python backend/seed_admin.py`.
 
 ---
 
-## User roles
+## License
 
-| Role | Access | URL |
-|---|---|---|
-| `volunteer` | Own contacts, call queue, templates | `/vol/*` |
-| `hub_leader` | Hub contacts, volunteers, logistics | `/hub/*` |
-| `minister` | Everything + demographics + exports | `/admin-panel/*` |
-| `registration_team` | Attendance gate only | `/attend` |
-| `decisions_team` | Decisions entry only | `/decisions` |
-
-**Invite flow:**
-1. Minister creates an invite from the admin panel — choose role + hub (for hub leaders) + name + phone/email.
-2. System generates a signed 48-hour invite URL.
-3. Minister shares the URL (copy or WhatsApp).
-4. Recipient opens the URL, enters their phone, verifies OTP, creates account.
-5. Account is immediately active (invite bypasses the pending → approve step).
-
----
-
-## URLs
-
-| URL | Public? | Notes |
-|---|---|---|
-| `/` | Yes | Landing page |
-| `/login` | Yes | Volunteer login |
-| `/hub-login` | No | Hub leader login — in invite links only |
-| `/admin` | No | Minister login — not linked anywhere publicly |
-| `/attend` | No | Registration Team — in invite links only |
-| `/decisions` | No | Decisions Team — in invite links only |
-| `/join?invite=TOKEN` | No | Invite claim page — token required |
-
-The `/admin` URL is intentionally not linked from any public page.
-
----
-
-## Design system
-
-Every screen uses the same CSS variable system. See `frontend/src/styles/global.css` for the full token set.
-
-**Fonts:**
-- `DM Sans` — all UI text, buttons, labels, navigation
-- `Instrument Serif italic` — hero numbers, streak count, campaign countdown
-- `JetBrains Mono` — OTP codes, phone numbers, percentages, timestamps, status badges
-
-**Theme:** Light and dark mode via `data-theme` attribute on `<html>`. Persisted to `localStorage('reach-theme')`. Set before React hydrates to prevent flash.
-
----
-
-## Performance
-
-**Client-side SWR cache** (`frontend/src/lib/cache.js`): serves cached data immediately, refreshes in background. Every API call is wrapped with `cached(key, fetchFn, ttlMs)`.
-
-**Optimistic UI**: status changes, logistics updates, and attendance check-ins update the UI before the API responds. Rolled back on failure with a toast.
-
-**Render cold starts**: UptimeRobot pings `https://reach-api-xg6c.onrender.com/health` every 10 minutes to keep the instance warm. If the first call takes over 2.5 seconds, a "Starting up…" message is shown instead of a blank screen.
-
----
-
-## Security
-
-- JWT access tokens (60-minute expiry) + refresh tokens (30-day expiry, rotating)
-- OTP: 6-digit, 10-minute expiry, max 5 attempts per session, 30-minute lockout
-- Cookies: `httponly=True`, `secure=True`, `samesite="none"` (required for cross-origin Vercel ↔ Render)
-- Cloudinary: signed uploads only — the API secret never reaches the frontend
-- Row-level access enforcement in every query — not just frontend filtering
-- Security headers on every response: HSTS, X-Frame-Options, X-Content-Type-Options, CSP
-
----
-
-## Backups
-
-Supabase free tier: daily automatic backups, 7-day retention.
-
-Additional weekly backup via GitHub Actions (`workflows/db-backup.yml`): `pg_dump` to a GitHub Actions artifact, 90-day retention. Requires `DATABASE_URL` in GitHub repository secrets.
-
-Manual backup:
-```bash
-pg_dump "$DATABASE_URL" --format=custom --no-acl --no-owner -f reach-backup-$(date +%Y%m%d).dump
-```
-
-Restore:
-```bash
-pg_restore --clean --no-acl --no-owner -d "$DATABASE_URL" reach-backup-20260101.dump
-```
-
----
-
-## Exports
-
-All exports are CSV. Headers use human-readable labels. Dates use DD/MM/YYYY HH:MM format. Phone numbers use E.164. Empty fields are blank.
-
-| Export | Accessible by |
-|---|---|
-| Campaign Contacts (full) | Minister |
-| Attendance Report | Minister |
-| Decisions / Altar Call | Minister |
-| Non-attendees | Minister |
-| Walk-ins only | Minister |
-| Hub Summary | Hub Leader |
-
-Filename format: `REACH_{Type}_{Campaign}_{YYYYMMDD}.csv`
-
----
-
-## Project structure
-
-```
-reach/
-├── backend/
-│   ├── main.py              # FastAPI app, middleware, router registration
-│   ├── models.py            # SQLAlchemy models — all enums inherit (str, Enum)
-│   ├── schemas.py           # Pydantic request/response schemas
-│   ├── database.py          # Engine, session, Base
-│   ├── config.py            # Settings from environment
-│   ├── auth.py              # JWT, OTP, hashing utilities
-│   ├── dependencies.py      # FastAPI deps: get_current_user, require_minister, etc.
-│   └── routers/
-│       ├── auth.py          # Login, OTP, refresh, logout
-│       ├── invites.py       # Invite create, preview, claim
-│       ├── contacts.py      # Contact CRUD + status updates
-│       ├── dashboard.py     # Volunteer, hub, minister dashboards
-│       ├── management.py    # Hub and minister management endpoints
-│       ├── attendance.py    # Check-in, walk-in, live status, bulk upload
-│       ├── decisions.py     # Decision entry, bulk upload, export
-│       ├── templates.py     # Message templates
-│       └── users.py         # Profile update, upload signature
-│
-├── frontend/
-│   ├── index.html           # Font loading, theme init script
-│   └── src/
-│       ├── App.jsx          # Router, role-based routing
-│       ├── main.jsx         # React root
-│       ├── styles/
-│       │   └── global.css   # Full design system — CSS variables, components
-│       ├── lib/
-│       │   ├── api.js       # API client with token management
-│       │   ├── cache.js     # Client-side SWR cache
-│       │   ├── labels.js    # All status/enum → human label maps
-│       │   ├── toast.js     # Toast notification system
-│       │   ├── confetti.js  # Gold confetti burst (CSS, no library)
-│       │   └── offline.js   # IndexedDB helpers for offline-first
-│       ├── hooks/
-│       │   └── useAuth.jsx  # Auth context + provider
-│       ├── components/
-│       │   ├── UI.jsx       # Spinner, EmptyState, Modal, Skeleton
-│       │   ├── ThemeToggle.jsx
-│       │   ├── ErrorBoundary.jsx
-│       │   ├── AvatarLightbox.jsx
-│       │   └── ui/
-│       │       ├── Badge.jsx    # StatusBadge, DecisionBadge — uses labels.js
-│       │       └── OTPInput.jsx # 6-cell OTP — auto-advance, backspace, paste
-│       └── pages/
-│           ├── LandingPage.jsx
-│           ├── LoginPage.jsx
-│           ├── HubLoginPage.jsx
-│           ├── AdminLoginPage.jsx
-│           ├── JoinPage.jsx         # Invite claim flow
-│           ├── PendingScreen.jsx
-│           ├── RejectedScreen.jsx
-│           ├── VolunteerLayout.jsx
-│           ├── HubLeaderLayout.jsx
-│           ├── MinisterLayout.jsx
-│           ├── AttendLayout.jsx     # /attend — Registration Team
-│           ├── DecisionsLayout.jsx  # /decisions — Decisions Team
-│           ├── volunteer/
-│           ├── hub/
-│           └── minister/
-│
-├── migrations/
-│   └── schema.sql           # Full idempotent schema — run once on fresh DB
-│
-└── .github/
-    └── workflows/
-        └── db-backup.yml    # Weekly pg_dump to GitHub artifact
-```
+Private — ministry use only.

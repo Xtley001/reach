@@ -50,17 +50,12 @@ export default function LandingPage() {
         }} />
 
         <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
-          {/* Decorative label above heading */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            marginBottom: 20, justifyContent: 'center',
-          }}>
-            <div style={{ height: 1, width: 32, background: 'var(--border-2)' }} />
+          {/* Label above heading */}
+          <div style={{ marginBottom: 20, textAlign: 'center' }}>
             <span style={{
               fontFamily: 'var(--font-mono)', fontSize: 10,
               color: 'var(--text-3)', letterSpacing: '0.18em', textTransform: 'uppercase',
             }}>Ministry Outreach Platform</span>
-            <div style={{ height: 1, width: 32, background: 'var(--border-2)' }} />
           </div>
 
           <h1 style={{
@@ -81,11 +76,12 @@ export default function LandingPage() {
             <button className="btn btn-primary btn-full btn-lg" onClick={() => navigate('/login')}>
               Sign In
             </button>
-            <button className="btn btn-outline btn-full btn-lg" onClick={() => navigate('/hub-login')}>
-              Hub Leader Sign In
-            </button>
-            <button className="btn btn-ghost" style={{ fontSize: 12, color: 'var(--text-3)' }} onClick={() => navigate('/admin')}>
-              Are you a minister? <span style={{ color: 'var(--text-2)' }}>Admin access →</span>
+            <button
+              className="btn btn-ghost btn-full"
+              style={{ fontSize: 12, color: 'var(--text-3)' }}
+              onClick={() => navigate('/hub-login')}
+            >
+              Hub Leader Sign In →
             </button>
           </div>
 
@@ -178,7 +174,7 @@ export default function LandingPage() {
               }}>
                 <span style={{
                   fontFamily: 'var(--font-mono)', fontSize: 10,
-                  color: 'var(--gold)', letterSpacing: '0.12em',
+                  color: 'var(--highlight)', letterSpacing: '0.12em',
                   flexShrink: 0, paddingTop: 3,
                 }}>{s.n}</span>
                 <div>
@@ -193,7 +189,10 @@ export default function LandingPage() {
 
       <footer style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 11, color: 'var(--text-3)' }}>REACH · Ministry Outreach Platform</span>
-        <button onClick={() => navigate('/privacy')} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--text-3)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>Privacy</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => navigate('/privacy')} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--text-3)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}>Privacy</button>
+          <span style={{ fontSize: 10, color: 'var(--text-3)', opacity: 0.4 }}>v2.0</span>
+        </div>
       </footer>
     </div>
   );

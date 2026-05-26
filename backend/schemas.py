@@ -111,16 +111,18 @@ class UserOut(BaseModel):
 
 
 class ActiveSessionOut(BaseModel):
-    session_id:   str
-    user_id:      str
-    created_at:   datetime
-    last_active:  datetime
+    token_id:    str
+    device_hint: Optional[str] = None
+    created_at:  datetime
+    expires_at:  datetime
 
 
 class HubLeaderSummary(BaseModel):
-    id:   str
-    name: str
-    zone: Optional[str] = None
+    hub_id:            str
+    hub_name:          str
+    hub_zone:          Optional[str] = None
+    leader_name:       Optional[str] = None
+    leader_avatar_url: Optional[str] = None
 
 
 class TokenResponse(BaseModel):

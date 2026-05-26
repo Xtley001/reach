@@ -12,6 +12,7 @@ import { Spinner } from './components/UI';
 import PrivacyPage    from './pages/PrivacyPage';
 import LandingPage    from './pages/LandingPage';
 import LoginPage      from './pages/LoginPage';
+import SignupPage     from './pages/SignupPage';
 import HubLoginPage   from './pages/HubLoginPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import JoinPage       from './pages/JoinPage';
@@ -60,6 +61,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/"          element={<LandingPage />} />
       <Route path="/login"     element={<LoginPage />} />
+      <Route path="/signup"    element={<SignupPage />} />
       <Route path="/hub-login" element={<HubLoginPage />} />
       <Route path="/admin"     element={<AdminLoginPage />} />
       <Route path="/privacy"   element={<PrivacyPage />} />

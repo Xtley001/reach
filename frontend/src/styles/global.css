@@ -3,23 +3,30 @@
 /* ── Light Mode ────────────────────────────────────────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --bg:         #F2F0EC;
-  --bg-2:       #E8E5DF;
-  --bg-3:       #DEDAD3;
-  --bg-glass:   rgba(242, 240, 236, 0.72);
-  --border:     #C8C3BA;
-  --border-2:   #B0A99E;
+  --bg:         #F6F5F2;
+  --bg-2:       #EEECE8;
+  --bg-3:       #E5E2DC;
+  --bg-glass:   rgba(246, 245, 242, 0.80);
+  --border:     #DDD9D3;
+  --border-2:   #CCCAC4;
 
-  --text:       #141210;
-  --text-2:     #5A5650;
-  --text-3:     #9A9490;
+  --text:       #1C1A17;
+  --text-2:     #5A5651;
+  --text-3:     #9A958E;
 
-  --accent:     #141210;
-  --accent-fg:  #F2F0EC;
+  /* Primary accent — deep sage green */
+  --accent:     #2D5A3D;
+  --accent-fg:  #FFFFFF;
+  --accent-2:   #3D7A52;
 
-  --gold:       #C9A84C;
-  --gold-dim:   #8A6F2E;
-  --gold-glow:  rgba(201, 168, 76, 0.15);
+  /* Secondary — warm terracotta (replaces gold for badges/indicators) */
+  --highlight:  #B85C38;
+  --highlight-2:#9A4A2A;
+
+  /* Legacy gold alias — kept so existing components don't break */
+  --gold:       #B85C38;
+  --gold-dim:   #9A4A2A;
+  --gold-glow:  rgba(184, 92, 56, 0.12);
 
   --green:      #2A6049;
   --red:        #B03A2E;
@@ -40,23 +47,29 @@
 
 /* ── Dark Mode ─────────────────────────────────────────────────────────────── */
 :root[data-theme="dark"] {
-  --bg:         #0F0E0C;
-  --bg-2:       #181610;
-  --bg-3:       #211E17;
-  --bg-glass:   rgba(24, 22, 16, 0.75);
-  --border:     #2A2720;
-  --border-2:   #3A3628;
+  --bg:         #131210;
+  --bg-2:       #1C1A17;
+  --bg-3:       #242220;
+  --bg-glass:   rgba(28, 26, 23, 0.85);
+  --border:     #2A2825;
+  --border-2:   #35322E;
 
-  --text:       #EDE9E2;
-  --text-2:     #8A8680;
-  --text-3:     #5A5650;
+  --text:       #F0EDE8;
+  --text-2:     #B0ADA6;
+  --text-3:     #6E6B64;
 
-  --accent:     #EDE9E2;
-  --accent-fg:  #0F0E0C;
+  /* Lighter sage in dark mode */
+  --accent:     #4A9463;
+  --accent-fg:  #0C1A10;
+  --accent-2:   #5AAD75;
 
-  --gold:       #E8C46A;
-  --gold-dim:   #C9A84C;
-  --gold-glow:  rgba(232, 196, 106, 0.12);
+  --highlight:  #D4714A;
+  --highlight-2:#E8845E;
+
+  /* Legacy gold alias */
+  --gold:       #D4714A;
+  --gold-dim:   #B85C38;
+  --gold-glow:  rgba(212, 113, 74, 0.12);
 
   --green:      #3DCC7A;
   --red:        #E06B5A;
@@ -695,9 +708,12 @@ button { font-family: var(--font-sans); cursor: pointer; }
   text-align: center;
   outline: none;
   transition: border-color 0.15s;
-  caret-color: var(--gold);
+  caret-color: var(--accent);
 }
-.otp-cell:focus { border-color: var(--border-2); }
+.otp-cell:focus { border-color: var(--accent); }
+
+/* ── Avatar hover overlay ───────────────────────────────────────────────────── */
+div:hover > .avatar-hover-overlay { opacity: 1 !important; }
 
 /* ── Streak Card ───────────────────────────────────────────────────────────── */
 .streak-card {
@@ -727,7 +743,7 @@ button { font-family: var(--font-sans); cursor: pointer; }
   background: var(--border);
   transition: background 0.2s;
 }
-.step-dot.done { background: var(--gold); }
+.step-dot.done { background: var(--accent); }
 
 /* ── Confetti ──────────────────────────────────────────────────────────────── */
 .confetti-particle {
@@ -810,7 +826,7 @@ button { font-family: var(--font-sans); cursor: pointer; }
 .modal .btn-full { max-width: 100%; }
 
 /* ── Misc ──────────────────────────────────────────────────────────────────── */
-.text-gold   { color: var(--gold); }
+.text-highlight { color: var(--highlight); }
 .text-green  { color: var(--green); }
 .text-red    { color: var(--red); }
 .text-amber  { color: var(--amber); }
@@ -819,5 +835,3 @@ button { font-family: var(--font-sans); cursor: pointer; }
 .text-mono   { font-family: var(--font-mono); }
 .text-serif  { font-family: var(--font-display); font-style: italic; }
 .font-bold   { font-weight: 600; }
-
-.hub-card-leader-border { border-left: 3px solid var(--gold); }

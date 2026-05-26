@@ -146,6 +146,21 @@ export const api = {
   exportDecisions()              { return `${BASE}/decisions/export/csv`; },
 
   // Profile
-  updateProfile(b)  { return request('PATCH', '/users/profile', b); },
-  getUploadSig()    { return request('POST', '/users/upload-signature'); },
+  updateProfile(b) { return request('PATCH', '/users/me/profile', b); },
+  getHubLeader()   { return request('GET', '/users/me/hub-leader'); },
+
+  // Avatar upload — sends multipart/form-data
+  async uploadAvatar(file, extraFields = {}) {
+    const fd = new FormData();
+    fd.append('avatar', file);
+    Object.entries(extraFields).forEach(([k, v]) => { if (v != null) fd.append(k, v); });
+    const r = await fetch(`${BASE}/users/me/profile`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${tokenStore.get()}` },
+      credentials: 'include',
+      body: fd,
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || 'Upload failed'); }
+    return r.json();
+  },
 };

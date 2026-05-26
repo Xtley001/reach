@@ -65,3 +65,27 @@ export function PageSkeleton({ rows = 5 }) {
     </div>
   );
 }
+
+export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', danger = false, onConfirm, onCancel }) {
+  if (!open) return null;
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="modal-title">{title}</span>
+          <button className="modal-close" onClick={onCancel}>×</button>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.65, marginBottom: 20 }}>{message}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-outline btn-full" onClick={onCancel}>Cancel</button>
+            <button
+              className={`btn btn-full ${danger ? 'btn-danger' : 'btn-primary'}`}
+              onClick={onConfirm}
+            >{confirmLabel}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

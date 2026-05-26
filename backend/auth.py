@@ -52,7 +52,7 @@ async def dispatch_otp(identifier: str, otp: str, channel: str) -> bool:
         print(f"OTP for {identifier}: {otp}")
         print(f"{'='*40}\n")
         # P1-1.8: Only CC admin in dev/staging — set ADMIN_OTP_CC_ENABLED=true to enable
-        cc_enabled = getattr(settings, "ADMIN_OTP_CC_ENABLED", "false").lower() == "true"
+        cc_enabled = settings.ADMIN_OTP_CC_ENABLED
         if cc_enabled and settings.ADMIN_BACKUP_EMAIL:
             print(f"[Admin copy] OTP {otp} for {identifier} → {settings.ADMIN_BACKUP_EMAIL}")
         return True
