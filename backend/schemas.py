@@ -64,6 +64,55 @@ class ClaimInviteRequest(BaseModel):
         return validate_phone(v)
 
 
+# ─── OTP Auth Schemas ─────────────────────────────────────────────────────────
+
+class SendOTPRequest(BaseModel):
+    phone:   Optional[str] = None
+    email:   Optional[str] = None
+    channel: str = "sms"  # "sms" or "email"
+
+
+class SendOTPResponse(BaseModel):
+    detail:      str
+    is_returning: bool
+
+
+class VerifyOTPRequest(BaseModel):
+    phone:   Optional[str] = None
+    email:   Optional[str] = None
+    channel: str = "sms"
+    otp:     str
+    name:    Optional[str] = None
+    hub_id:  Optional[str] = None
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    expires_in:   int
+
+
+class UserOut(BaseModel):
+    id:       str
+    name:     str
+    email:    Optional[str] = None
+    phone:    Optional[str] = None
+    role:     str
+    status:   str
+
+
+class ActiveSessionOut(BaseModel):
+    session_id:   str
+    user_id:      str
+    created_at:   datetime
+    last_active:  datetime
+
+
+class HubLeaderSummary(BaseModel):
+    id:   str
+    name: str
+    zone: Optional[str] = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     user_id:      str
