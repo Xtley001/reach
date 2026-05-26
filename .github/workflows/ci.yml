@@ -1,0 +1,62 @@
+# REACH — CI Pipeline (INFRA-01)
+# Blocks bad pushes before they reach Vercel / Render.
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: cd frontend && npm ci
+      - name: Build (catches JSX/import errors)
+        run: cd frontend && npm run build
+        env:
+          VITE_API_URL: "https://ci.placeholder.onrender.com"
+      - name: Verify syncContacts defined (BUG-02)
+        run: grep -q "syncContacts" frontend/src/lib/api.js && echo "✅" || (echo "❌ api.syncContacts missing" && exit 1)
+      - name: No hardcoded /api paths (FE-01)
+        run: "! grep -rn \"['\\\"/]api/auth\" frontend/src/hooks/ && echo '✅' || (echo '❌ hardcoded /api path' && exit 1)"
+
+  backend:
+    name: Backend syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Compile all Python files
+        run: |
+          ERRORS=0
+          while IFS= read -r f; do
+            python -m py_compile "$f" || { echo "❌ Syntax error: $f"; ERRORS=$((ERRORS+1)); }
+          done < <(find backend -name "*.py" -not -path "*/__pycache__/*")
+          [[ $ERRORS -eq 0 ]] && echo "✅ All Python files compile" || exit 1
+
+  deploy-check:
+    name: Deployment checklist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run check-deploy.sh
+        run: bash check-deploy.sh
+      - name: No vercel.json.readme (INFRA-05)
+        run: "! test -f vercel.json.readme && echo '✅' || (echo '❌ Remove vercel.json.readme' && exit 1)"
+      - name: No personal credentials in seed_admin (SEC-02)
+        run: "! grep -q 'agbolubela\\|+2349158' backend/seed_admin.py && echo '✅' || (echo '❌ Personal creds in seed_admin.py' && exit 1)"

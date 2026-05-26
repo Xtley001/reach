@@ -1,0 +1,139 @@
+/**
+ * REACH — App Router
+ * Volunteer: /vol/*  |  Hub Leader: /hub/*  |  Minister: /admin-panel/*
+ * Registration Team: /attend  |  Decisions Team: /decisions
+ */
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useState, useEffect } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
+import { useAuth, AuthProvider } from './hooks/useAuth';
+import { Spinner } from './components/UI';
+
+import PrivacyPage    from './pages/PrivacyPage';
+import LandingPage    from './pages/LandingPage';
+import LoginPage      from './pages/LoginPage';
+import HubLoginPage   from './pages/HubLoginPage';
+import AdminLoginPage from './pages/AdminLoginPage';
+import JoinPage       from './pages/JoinPage';
+import PendingScreen  from './pages/PendingScreen';
+import RejectedScreen from './pages/RejectedScreen';
+import VolunteerLayout from './pages/VolunteerLayout';
+import HubLeaderLayout from './pages/HubLeaderLayout';
+import MinisterLayout  from './pages/MinisterLayout';
+
+const AttendLayout  = lazy(() => import('./pages/AttendLayout'));
+const DecisionsLayout = lazy(() => import('./pages/DecisionsLayout'));
+
+function LoadingScreen({ slowStart = false }) {
+  return (
+    <div style={{
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 20,
+    }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 20, fontWeight: 600, letterSpacing: '0.25em', color: 'var(--text)' }}>
+        REACH
+      </div>
+      <Spinner />
+      {/* P2-5.4: Cold start message after 2.5s */}
+      {slowStart && (
+        <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginTop: 4, animation: 'pageIn 0.3s ease-out' }}>
+          Starting up… this takes a few seconds
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  const [slowStart, setSlowStart] = useState(false);
+  useEffect(() => {
+    const handler = () => setSlowStart(true);
+    window.addEventListener('reach:slow-start', handler);
+    return () => window.removeEventListener('reach:slow-start', handler);
+  }, []);
+
+  if (loading) return <LoadingScreen slowStart={slowStart} />;
+
+  if (!user) return (
+    <Routes>
+      <Route path="/"          element={<LandingPage />} />
+      <Route path="/login"     element={<LoginPage />} />
+      <Route path="/hub-login" element={<HubLoginPage />} />
+      <Route path="/admin"     element={<AdminLoginPage />} />
+      <Route path="/privacy"   element={<PrivacyPage />} />
+      <Route path="/join"      element={<JoinPage />} />
+      <Route path="*"          element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+
+  if (user.status === 'rejected') return (
+    <Routes>
+      <Route path="/rejected" element={<RejectedScreen />} />
+      <Route path="*"         element={<Navigate to="/rejected" replace />} />
+    </Routes>
+  );
+
+  if (user.status === 'pending') return (
+    <Routes>
+      <Route path="/pending" element={<PendingScreen />} />
+      <Route path="*"        element={<Navigate to="/pending" replace />} />
+    </Routes>
+  );
+
+  if (user.role === 'minister') return (
+    <Routes>
+      <Route path="/admin-panel/*" element={<MinisterLayout />} />
+      <Route path="/admin"         element={<AdminLoginPage />} />
+      <Route path="*"              element={<Navigate to="/admin-panel/dashboard" replace />} />
+    </Routes>
+  );
+
+  if (user.role === 'hub_leader') return (
+    <Routes>
+      <Route path="/hub/*" element={<HubLeaderLayout />} />
+      <Route path="*"      element={<Navigate to="/hub/dashboard" replace />} />
+    </Routes>
+  );
+
+  if (user.role === 'registration_team') return (
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/attend" element={<AttendLayout />} />
+        <Route path="*"       element={<Navigate to="/attend" replace />} />
+      </Routes>
+    </Suspense>
+  );
+
+  if (user.role === 'decisions_team') return (
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/decisions" element={<DecisionsLayout />} />
+        <Route path="*"          element={<Navigate to="/decisions" replace />} />
+      </Routes>
+    </Suspense>
+  );
+
+  // Volunteer
+  return (
+    <Routes>
+      <Route path="/vol/*"   element={<VolunteerLayout />} />
+      <Route path="/login"   element={<LoginPage />} />
+      <Route path="/pending" element={<PendingScreen />} />
+      <Route path="*"        element={<Navigate to="/vol/home" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <ErrorBoundary>
+          <AppRoutes />
+        </ErrorBoundary>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
