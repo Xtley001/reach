@@ -70,7 +70,7 @@ async def require_minister(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-def verify_contact_ownership(contact, user: User):
+def verify_contact_ownership(contact, user: User, db: Session = None):
     """
     Verify that a user can access a contact.
     Volunteers can only access contacts they added.
@@ -80,8 +80,11 @@ def verify_contact_ownership(contact, user: User):
     if user.role == UserRole.minister:
         return  # Ministers can access all
     if user.role == UserRole.hub_leader:
-        if contact.added_by_hub_id == user.hub_id:
-            return  # Hub leader can access contacts from their hub
+        # Hub leaders can access contacts added by volunteers in their hub
+        if db and contact.added_by:
+            added_by_user = db.query(User).filter(User.id == contact.added_by).first()
+            if added_by_user and added_by_user.hub_id == user.hub_id:
+                return
     if user.role == UserRole.volunteer:
         if contact.added_by == user.id:
             return  # Volunteer can only access their own contacts

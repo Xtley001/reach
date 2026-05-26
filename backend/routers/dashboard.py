@@ -73,7 +73,7 @@ async def volunteer_dashboard(
     ))
 
     # Streak: consecutive days with ≥1 action
-    streak = await _cached_streak(user.id, db, request)
+    streak = _calculate_streak(user.id, db)
 
     return {
         "total_contacts": total,

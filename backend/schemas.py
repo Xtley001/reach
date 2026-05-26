@@ -194,3 +194,41 @@ class ContactSyncResult(BaseModel):
     created:    int = 0
     duplicates: int = 0
     errors:     List[str] = []
+
+
+# ─── Template Schemas ─────────────────────────────────────────────────────────
+
+class TemplateCreate(BaseModel):
+    label:      str
+    body:       str
+    expires_at: Optional[datetime] = None
+
+
+class TemplateOut(BaseModel):
+    id:         str
+    label:      str
+    body:       str
+    is_active:  bool
+    created_at: datetime
+
+
+# ─── Management Schemas ──────────────────────────────────────────────────────
+
+class LogisticsUpdate(BaseModel):
+    transport_status:  str
+    coordinator_note: Optional[str] = None
+
+
+class ContactReassign(BaseModel):
+    to_volunteer_id: str
+
+
+class ApprovalAction(BaseModel):
+    action: str
+
+
+class CampaignCreate(BaseModel):
+    name:           str
+    target_count:   Optional[int] = None
+    programme_date: Optional[datetime] = None
+    venue:          Optional[str] = None

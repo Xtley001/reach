@@ -301,6 +301,7 @@ class OTPSession(Base):
 
     id              = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
     identifier_hash = Column(String(200), nullable=False, unique=True)
+    user_id         = Column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=True)
     channel         = Column(String(10),  nullable=False, default="sms")
     otp_hash        = Column(String(200), nullable=False)
     attempts        = Column(Integer, nullable=False, default=0)

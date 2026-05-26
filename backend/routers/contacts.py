@@ -250,7 +250,7 @@ async def get_contact(
         # 403 not 404 — don't confirm existence to unauthorised callers
         raise HTTPException(status_code=403, detail="Access denied")
 
-    verify_contact_ownership(contact, user)
+    verify_contact_ownership(contact, user, db)
 
     # Hub leader access: log it
     if user.role == UserRole.hub_leader and contact.added_by != user.id:
@@ -288,7 +288,7 @@ async def update_status(
     if not contact:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    verify_contact_ownership(contact, user)
+    verify_contact_ownership(contact, user, db)
 
     status_entry = ContactStatus(
         contact_id=contact_id,
@@ -328,7 +328,7 @@ async def delete_contact(
     if not contact:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    verify_contact_ownership(contact, user)
+    verify_contact_ownership(contact, user, db)
 
     # Log before deletion (can't reference ID after delete)
     log_action(db, user, "contact.deleted", "contact", contact_id, get_client_ip(request))
@@ -472,7 +472,7 @@ async def log_message_send(
     contact = db.query(Contact).filter(Contact.id == body.contact_id).first()
     if not contact:
         raise HTTPException(status_code=403, detail="Access denied")
-    verify_contact_ownership(contact, user)
+    verify_contact_ownership(contact, user, db)
 
     # Verify template is active and not expired
     template = db.query(MessageTemplate).filter(MessageTemplate.id == body.template_id).first()
