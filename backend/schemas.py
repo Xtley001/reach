@@ -25,6 +25,16 @@ def validate_phone(v: str) -> str:
     return cleaned
 
 
+def validate_email_address(v: str) -> str:
+    """Validate email format."""
+    if not v:
+        raise ValueError("Email is required.")
+    # Simple email validation
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', str(v)):
+        raise ValueError(f"Invalid email address: {v}")
+    return v.lower()
+
+
 class InviteCreate(BaseModel):
     name_hint: Optional[str] = None
     phone:     Optional[str] = None
