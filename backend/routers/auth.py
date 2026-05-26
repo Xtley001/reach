@@ -158,6 +158,7 @@ async def send_otp(body: SendOTPRequest, request: Request, db: Session = Depends
         )
         db.add(session)
 
+    # AFTER — replace with this:
     db.commit()
 
     ok = await dispatch_otp(identifier, otp, body.channel)
@@ -165,6 +166,7 @@ async def send_otp(body: SendOTPRequest, request: Request, db: Session = Depends
         raise HTTPException(status_code=503, detail="OTP delivery failed. Please try again.")
 
     log_action(db, None, "auth.otp_sent", ip_address=get_client_ip(request))
+    db.commit()  # commit the audit log entry separately after OTP dispatch succeeds
     return SendOTPResponse(detail="OTP sent. Valid for 10 minutes.", is_returning=is_returning)
 
 

@@ -93,7 +93,7 @@ def verify_contact_ownership(contact, user: User, db: Session = None):
 
 def log_action(
     db: Session,
-    user: User,
+    user: Optional[User],
     action: str,
     entity_type: Optional[str] = None,
     entity_id: Optional[str] = None,
@@ -102,14 +102,12 @@ def log_action(
 ):
     import json
     log = AuditLog(
-        user_id=user.id,
-        organisation_id=user.organisation_id,
+        user_id=user.id if user else None,                        # fix: user can be None for unauthenticated actions
+        organisation_id=user.organisation_id if user else None,   # fix: same
         action=action,
         entity_type=entity_type,
         entity_id=str(entity_id) if entity_id else None,
         ip_address=ip_address,
         log_metadata=json.dumps(metadata) if metadata else None,
     )
-    db.add(log)
-    # P2-2.9: No commit here — caller commits atomically with their own data.
-    # If the caller rolls back, the log entry is also rolled back (correct behaviour).
+    db.add(log) 
