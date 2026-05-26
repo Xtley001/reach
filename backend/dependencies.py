@@ -70,6 +70,24 @@ async def require_minister(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def verify_contact_ownership(contact, user: User):
+    """
+    Verify that a user can access a contact.
+    Volunteers can only access contacts they added.
+    Hub leaders can access all contacts from their hub.
+    Ministers can access all contacts.
+    """
+    if user.role == UserRole.minister:
+        return  # Ministers can access all
+    if user.role == UserRole.hub_leader:
+        if contact.added_by_hub_id == user.hub_id:
+            return  # Hub leader can access contacts from their hub
+    if user.role == UserRole.volunteer:
+        if contact.added_by == user.id:
+            return  # Volunteer can only access their own contacts
+    raise HTTPException(status_code=403, detail="Access denied")
+
+
 def log_action(
     db: Session,
     user: User,

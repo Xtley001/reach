@@ -1,5 +1,5 @@
-import { Routes, Route, NavLink, Navigate, useNavigate, Suspense } from 'react-router-dom';
-import { lazy } from 'react';
+import { Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import ThemeToggle from '../components/ThemeToggle';
 import { Spinner } from '../components/UI';
