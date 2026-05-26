@@ -7,10 +7,11 @@ pydantic==2.10.3
 pydantic-settings==2.6.1
 python-jose[cryptography]==3.3.0
 pyjwt==2.10.0
-passlib[bcrypt]==1.7.4
 httpx==0.28.0
 slowapi==0.1.9
 cloudinary==1.41.0
 redis==5.2.0
 python-multipart==0.0.19
 sentry-sdk[fastapi]==2.19.2
+bcrypt==4.0.1
+passlib[bcrypt]==1.7.4
