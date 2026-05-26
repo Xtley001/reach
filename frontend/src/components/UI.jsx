@@ -8,10 +8,18 @@ export function Spinner({ large }) {
   return <div className={`spinner${large ? ' spinner-lg' : ''}`} />;
 }
 
-export function EmptyState({ icon = '📭', message = 'Nothing here yet.' }) {
+export function EmptyState({ icon, message = 'Nothing here yet.' }) {
   return (
     <div className="empty-state">
-      <div className="empty-state-icon">{icon}</div>
+      <div className="empty-state-icon">
+        {icon ?? (
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="var(--text-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8l1.5 9A2 2 0 006.47 19h11.06A2 2 0 0019.5 17L21 8H3z"/>
+            <path d="M8 8V6a4 4 0 018 0v2"/>
+          </svg>
+        )}
+      </div>
       <div className="empty-state-msg">{message}</div>
     </div>
   );

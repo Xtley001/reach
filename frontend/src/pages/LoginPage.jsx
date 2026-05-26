@@ -8,16 +8,21 @@ import ThemeToggle from '../components/ThemeToggle';
 
 const STEPS = ['channel', 'otp', 'hub'];
 
+const BACK_ARROW = (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <path d="M19 12H5M12 5l-7 7 7 7"/>
+  </svg>
+);
+
 export default function LoginPage() {
   const [step, setStep]         = useState(0);
-  const [channel, setChannel]   = useState('sms');
+  const [channel, setChannel]   = useState('email');
   const [identifier, setId]     = useState('');
   const [otp, setOtp]           = useState('');
   const [hubs, setHubs]         = useState([]);
   const [hubId, setHubId]       = useState('');
   const [name, setName]         = useState('');
   const [loading, setLoading]   = useState(false);
-  // P1-3.8: Store setup_token from step 2 so step 3 doesn't re-use the consumed OTP
   const [setupToken, setSetupToken] = useState(null);
   const { refreshUser }         = useAuth();
   const navigate                = useNavigate();
@@ -46,11 +51,9 @@ export default function LoginPage() {
                    : '/vol/home';
         navigate(dest, { replace: true });
       } else if (data.is_new_user && data.setup_token) {
-        // P1-3.8: New user — use setup_token for hub selection, not the OTP again
         setSetupToken(data.setup_token);
         setStep(2);
       } else if (data.is_new_user) {
-        // Fallback: backend didn't send setup_token (older version)
         setStep(2);
       } else {
         await refreshUser();
@@ -65,10 +68,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (setupToken) {
-        // P1-3.8: Use setup_token — OTP already consumed
         await api.completeSetup({ setup_token: setupToken, hub_id: hubId, name: name || undefined });
       } else {
-        // Fallback for older backend — try passing hub in a profile update
         await api.updateProfile({ hub_id: hubId, name: name || undefined });
       }
       await refreshUser();
@@ -79,10 +80,19 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px' }}>
-        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
-          ← Back
+      {/* Top bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '16px 24px', borderBottom: '1px solid var(--border)',
+      }}>
+        <button onClick={() => navigate('/')} style={{
+          background: 'none', border: 'none', color: 'var(--text-3)',
+          cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12,
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          {BACK_ARROW} Back
         </button>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', color: 'var(--text-3)', textTransform: 'uppercase' }}>REACH</span>
         <ThemeToggle />
       </div>
 
@@ -95,10 +105,10 @@ export default function LoginPage() {
           <div style={{ animation: 'pageIn 0.18s ease-out both' }}>
             {step === 0 && (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8 }}>Sign in to REACH</h1>
-                <p style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 28 }}>Enter your phone or email to receive a code</p>
+                <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Sign in</h1>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>Volunteer access</p>
                 <div style={{ display: 'flex', background: 'var(--bg-3)', borderRadius: 'var(--radius)', padding: 3, marginBottom: 20 }}>
-                  {['sms','email'].map(ch => (
+                  {['email','sms'].map(ch => (
                     <button key={ch} onClick={() => setChannel(ch)} style={{
                       flex: 1, height: 36, borderRadius: 'calc(var(--radius) - 2px)', border: 'none', cursor: 'pointer',
                       fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
@@ -116,7 +126,7 @@ export default function LoginPage() {
                     value={identifier} onChange={e => setId(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && sendOtp()} autoFocus />
                 </div>
-                <button className="btn btn-primary btn-full" style={{ height: 48 }} onClick={sendOtp} disabled={loading}>
+                <button className="btn btn-primary btn-full" style={{ height: 44 }} onClick={sendOtp} disabled={loading}>
                   {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Send Code'}
                 </button>
               </>
@@ -124,24 +134,24 @@ export default function LoginPage() {
 
             {step === 1 && (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8 }}>Enter your code</h1>
-                <p style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 28 }}>
-                  Code valid for 10 minutes · Sent to {identifier}
+                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>Check your {channel === 'sms' ? 'phone' : 'inbox'}</p>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 24, fontFamily: 'var(--font-mono)' }}>
+                  Sent to {identifier} · expires in 10 min
                 </p>
                 <OTPInput value={otp} onChange={setOtp} />
-                <button className="btn btn-primary btn-full" style={{ height: 48 }} onClick={verifyAndLogin} disabled={loading || otp.length < 6}>
+                <button className="btn btn-primary btn-full" style={{ height: 44 }} onClick={verifyAndLogin} disabled={loading || otp.length < 6}>
                   {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Verify'}
                 </button>
                 <button className="btn btn-ghost btn-full" style={{ marginTop: 8 }} onClick={() => { setStep(0); setOtp(''); }}>
-                  Change number
+                  Change {channel === 'sms' ? 'number' : 'email'}
                 </button>
               </>
             )}
 
             {step === 2 && (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8 }}>Choose your hub</h1>
-                <p style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 24 }}>Select the hub you're volunteering with</p>
+                <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Your hub</h1>
+                <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24 }}>Select the hub you're volunteering with</p>
                 <div className="form-group">
                   <label className="field-label">Your Name</label>
                   <input className="field-input" placeholder="Full name" value={name} onChange={e => setName(e.target.value)} />
@@ -166,7 +176,7 @@ export default function LoginPage() {
                     </div>
                   ))}
                 </div>
-                <button className="btn btn-primary btn-full" style={{ height: 48 }} onClick={selectHub} disabled={loading || !hubId}>
+                <button className="btn btn-primary btn-full" style={{ height: 44 }} onClick={selectHub} disabled={loading || !hubId}>
                   {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Join Hub'}
                 </button>
               </>

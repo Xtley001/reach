@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function PendingScreen() {
   const { user, logout, refreshUser } = useAuth();
@@ -23,20 +24,37 @@ export default function PendingScreen() {
       alignItems: 'center', justifyContent: 'center',
       background: 'var(--bg)', padding: 'var(--space-6)',
     }}>
+      <div style={{ position: 'fixed', top: 16, right: 16 }}>
+        <ThemeToggle />
+      </div>
+
       <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
         <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          border: '3px solid var(--gold)',
+          fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
+          letterSpacing: '0.25em', color: 'var(--text-3)', textTransform: 'uppercase',
+          marginBottom: 32, textAlign: 'center',
+        }}>REACH</div>
+
+        <div style={{
+          width: 56, height: 56, borderRadius: '50%',
+          border: '1px solid var(--border)',
           margin: '0 auto var(--space-6)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 28,
-        }}>⏳</div>
+        }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
 
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 12, color: 'var(--text)' }}>
-          Waiting for Approval
+        <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 10, color: 'var(--text)' }}>
+          Awaiting approval
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 24 }}>
-          Waiting for <strong>{hubLeaderName}</strong> to approve you. Hub leaders typically approve within a few hours.
+        <p style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.7, marginBottom: 8 }}>
+          <strong style={{ color: 'var(--text)' }}>{hubLeaderName}</strong> will approve your request shortly.
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6, marginBottom: 28 }}>
+          This usually takes a few hours. You'll be able to sign in once approved.
         </p>
 
         <button
