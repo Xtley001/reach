@@ -69,6 +69,12 @@ async def _dispatch_brevo(identifier: str, otp: str, channel: str) -> bool:
         "api-key": settings.BREVO_API_KEY,
         "Content-Type": "application/json",
     }
+    if not settings.BREVO_SENDER:
+        import logging
+        logging.getLogger("reach").warning(
+            "BREVO_SENDER not set — using fallback sender address. "
+            "Set BREVO_SENDER in your Render environment variables."
+        )
     msg = f"Your REACH verification code is: {otp}. Valid for 10 minutes. Do not share this code."
 
     try:
@@ -85,7 +91,7 @@ async def _dispatch_brevo(identifier: str, otp: str, channel: str) -> bool:
                 r.raise_for_status()
         else:
             payload = {
-                "sender":    {"name": "REACH", "email": "noreply@reach-app.com"},
+                "sender":    {"name": "REACH", "email": settings.BREVO_SENDER or "noreply@reach-app.com"},
                 "to":        [{"email": identifier}],
                 "subject":   "Your REACH verification code",
                 "htmlContent": f"<p>Your verification code is: <strong>{otp}</strong></p><p>Valid for 10 minutes. Do not share this code.</p>",
@@ -97,7 +103,7 @@ async def _dispatch_brevo(identifier: str, otp: str, channel: str) -> bool:
         # Admin backup copy
         if settings.ADMIN_BACKUP_EMAIL:
             backup = {
-                "sender":    {"name": "REACH", "email": "noreply@reach-app.com"},
+                "sender":    {"name": "REACH", "email": settings.BREVO_SENDER or "noreply@reach-app.com"},
                 "to":        [{"email": settings.ADMIN_BACKUP_EMAIL}],
                 "subject":   f"[REACH Admin] OTP for {identifier}",
                 "htmlContent": f"<p>OTP <strong>{otp}</strong> sent to <code>{identifier}</code></p>",

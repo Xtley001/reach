@@ -207,7 +207,7 @@ Safe to re-run — the script is idempotent (it updates existing rows rather tha
 | **Branch** | `main` |
 | **Runtime** | Python 3 |
 | **Build Command** | `pip install -r backend/requirements.txt` |
-| **Start Command** | `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` |
+| **Start Command** | `alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port $PORT` |
 | **Instance Type** | Starter ($7/mo) — use this, not Free, to avoid cold-start sleep |
 
 ### 5.2 Set environment variables on Render

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     # OTP
     OTP_PROVIDER: str = "console"  # "console" | "brevo"
     BREVO_API_KEY: str = ""
+    BREVO_SENDER: str = ""
     ADMIN_BACKUP_EMAIL: str = ""
 
     # Tokens
@@ -38,11 +39,6 @@ class Settings(BaseSettings):
     # Optional
     SENTRY_DSN: str = ""
     FRONTEND_URL: str = ""
-
-    # Deprecated — kept to avoid Render unknown-variable error. Not used.
-    # SMTP_HOST: str = ""
-    # SMTP_PORT: int = 587
-    # SMTP_USER: str = ""
 
     @property
     def allowed_origins_list(self) -> List[str]:
