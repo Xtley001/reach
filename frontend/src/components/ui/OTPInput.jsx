@@ -12,7 +12,7 @@ import { useRef, useEffect } from 'react';
  */
 export function OTPInput({ value = '', onChange, error = false }) {
   const cells  = useRef([]);
-  const digits = value.padEnd(6, '').split('').slice(0, 6);
+  const digits = Array.from({ length: 6 }, (_, i) => value[i] || '');
 
   /* WebOTP API — auto-read SMS code on Android (MED-04) */
   useEffect(() => {
