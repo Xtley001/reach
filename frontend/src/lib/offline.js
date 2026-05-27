@@ -70,3 +70,40 @@ export async function clearSynced(id) {
     req.onerror   = () => rej(req.error);
   });
 }
+
+export async function syncPendingItems() {
+  const items = await getPendingSync();
+  if (!items || items.length === 0) return { synced: 0, failed: 0 };
+
+  const token = (() => { try { return sessionStorage.getItem('reach_at'); } catch { return null; } })();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const base = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL)
+    ? import.meta.env.VITE_API_URL.replace(/\/$/, '') + '/v1'
+    : '/v1';
+
+  let synced = 0;
+  let failed = 0;
+
+  for (const item of items) {
+    try {
+      const res = await fetch(`${base}/contacts/sync`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify([item]),
+      });
+      if (res.ok) {
+        await clearSynced(item.id);
+        synced++;
+      } else {
+        failed++;
+      }
+    } catch {
+      failed++;
+    }
+  }
+
+  return { synced, failed };
+}
