@@ -90,7 +90,7 @@
 /* ── Typography ────────────────────────────────────────────────────────────── */
 :root {
   --font-sans:    'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-display: var(--font-sans); /* Instrument Serif removed — use DM Sans everywhere */
   --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
 
   /* Legacy aliases */
@@ -261,30 +261,22 @@ html, body {
   gap: 3px;
   text-decoration: none;
   color: var(--text-3);
-  font-size: 9px;
+  font-size: 10px;              /* Slightly larger for readability */
   font-family: var(--font-sans);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;       /* Less aggressive tracking per spec */
   padding: 6px 0;
   position: relative;
   transition: color 0.15s;
   min-height: var(--tap-min);
 }
 .nav-item.active {
-  color: var(--text);
+  color: var(--accent);         /* Green active state per design spec */
 }
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--gold);
+.nav-item.active svg {
+  stroke: var(--accent);
 }
+/* Removed gold dot — replaced with green text/icon active state */
 
 /* ── Sidebar (Hub/Minister desktop) ───────────────────────────────────────── */
 .sidebar {
@@ -497,12 +489,13 @@ button { font-family: var(--font-sans); cursor: pointer; }
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   font-size: 11px;
-  font-family: var(--font-mono);
-  font-weight: 500;
+  font-family: var(--font-sans); /* Design spec: badges use font-sans, NOT mono */
+  font-weight: 600;
   background: var(--bg-3);
   color: var(--text-2);
   border: 1px solid var(--border);
   white-space: nowrap;
+  letter-spacing: 0.04em;
 }
 .badge-green  { background: rgba(42, 96, 73, 0.12);  color: var(--green); border-color: rgba(42, 96, 73, 0.25); }
 .badge-red    { background: rgba(176, 58, 46, 0.12); color: var(--red);   border-color: rgba(176, 58, 46, 0.25); }
@@ -566,13 +559,15 @@ button { font-family: var(--font-sans); cursor: pointer; }
 }
 .stat-value {
   font-size: 28px;
-  font-weight: 600;
+  font-weight: 800;           /* Design spec: weight-extrabold for all stat numbers */
+  font-family: var(--font-sans); /* Never mono, never serif — always DM Sans */
   color: var(--text);
   line-height: 1;
   margin-bottom: var(--space-1);
+  font-variant-numeric: tabular-nums;
 }
-.stat-value.serif { font-family: var(--font-display); font-style: italic; }
-.stat-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
+/* .stat-value.serif is REMOVED — Instrument Serif on stat numbers was a design bug */
+.stat-label { font-size: 11px; font-family: var(--font-sans); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
 
 /* ── Modal ─────────────────────────────────────────────────────────────────── */
 .modal-overlay {
@@ -633,41 +628,47 @@ button { font-family: var(--font-sans); cursor: pointer; }
 .modal-close:hover { background: var(--bg-2); color: var(--text); }
 
 /* ── Toast ─────────────────────────────────────────────────────────────────── */
-/* LOW-08: toast container gets aria-live="assertive" in toast.js — CSS supports it */
+/* NEW-004/005: Centralised toast system. All toasts render in #reach-toast-root
+   which is fixed above the bottom nav. Individual toasts are NOT position:fixed
+   — that was causing them to float in the content area instead of stacking above nav. */
 .reach-toast-root {
   position: fixed;
-  bottom: 72px;
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 8px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 .reach-toast {
-  position: fixed;
-  bottom: 72px;
-  left: 50%;
-  transform: translateX(-50%) translateY(12px);
+  /* NOT position:fixed — stacks inside the container above nav */
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 20px;
+  padding: 10px 18px;
   font-size: 13px;
   font-family: var(--font-sans);
+  font-weight: 500;
   color: var(--text);
   opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(8px) scale(0.96);
+  transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
   z-index: 9999;
   white-space: nowrap;
+  max-width: min(320px, calc(100vw - 32px));
   box-shadow: var(--shadow-md);
   pointer-events: none;
 }
-.reach-toast.show      { opacity: 1; transform: translateX(-50%) translateY(0); }
-.reach-toast-success   { border-color: var(--green); color: var(--green); }
-.reach-toast-error     { border-color: var(--red);   color: var(--red);   }
-.reach-toast-warning   { border-color: var(--amber); color: var(--amber); }
-.reach-toast-gold      { border-color: var(--gold);  color: var(--gold);  }
+.reach-toast.show      { opacity: 1; transform: translateY(0) scale(1); }
+.reach-toast-success   { border-color: var(--green); color: var(--green);  background: var(--bg-glass); }
+.reach-toast-error     { border-color: var(--red);   color: var(--red);    background: var(--bg-glass); }
+.reach-toast-warning   { border-color: var(--amber); color: var(--amber);  background: var(--bg-glass); }
+.reach-toast-gold      { border-color: var(--gold);  color: var(--gold);   background: var(--bg-glass); }
 
 /* ── Divider ───────────────────────────────────────────────────────────────── */
 .divider { height: 1px; background: var(--border); margin: var(--space-4) 0; }
@@ -784,8 +785,8 @@ div:hover > .avatar-hover-overlay { opacity: 1 !important; }
   gap: var(--space-3);
 }
 .streak-number {
-  font-family: var(--font-display);
-  font-style: italic;
+  font-family: var(--font-sans);
+  font-weight: 800;
   font-size: 40px;
   color: var(--gold);
   line-height: 1;
@@ -891,5 +892,5 @@ div:hover > .avatar-hover-overlay { opacity: 1 !important; }
 .text-muted  { color: var(--text-2); }
 .text-faint  { color: var(--text-3); }
 .text-mono   { font-family: var(--font-mono); }
-.text-serif  { font-family: var(--font-display); font-style: italic; }
+/* .text-serif removed — Instrument Serif is no longer in the design system (see Part 1 typography spec) */
 .font-bold   { font-weight: 600; }

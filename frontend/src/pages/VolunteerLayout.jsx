@@ -7,7 +7,8 @@ import ContactsList from './volunteer/ContactsList';
 import AddContact from './volunteer/AddContact';
 import CallQueue from './volunteer/CallQueue';
 import VolunteerProfile from './volunteer/VolunteerProfile';
-import { getPendingSync } from '../lib/offline';
+import { getPendingSync, syncPendingItems } from '../lib/offline';
+import { toast } from '../lib/toast';
 
 function NavIcon({ children, badge }) {
   return (
@@ -29,13 +30,33 @@ function NavIcon({ children, badge }) {
 export default function VolunteerLayout() {
   const { user, logout } = useAuth();
   const navigate         = useNavigate();
-  const [addOpen, setAddOpen] = useState(false);
-  const [pending, setPending] = useState(0);
-  const [syncing, setSyncing] = useState(false);
+  const [addOpen, setAddOpen]           = useState(false);
+  const [pending, setPending]           = useState(0);
+  const [syncing, setSyncing]           = useState(false);
+  // FIX-009: track a contact ID opened from the home screen's recent list
+  const [openContactId, setOpenContactId] = useState(null);
 
   useEffect(() => {
     getPendingSync().then(q => setPending(q.length)).catch(() => {});
   }, []);
+
+  // FIX-008: onSync was undefined — now wired to the actual sync utility
+  async function handleSync() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      if (typeof syncPendingItems === 'function') {
+        await syncPendingItems();
+        const q = await getPendingSync().catch(() => []);
+        setPending(q.length);
+        toast('Synced successfully', 'success');
+      }
+    } catch {
+      toast('Sync failed. Will retry automatically.', 'error');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (addOpen) return (
     <div className="layout-outer">
@@ -53,10 +74,13 @@ export default function VolunteerLayout() {
           <div className="topbar-brand">REACH</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {(pending > 0 || syncing) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div
+                onClick={handleSync}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
+              >
                 <span className={`sync-dot ${syncing ? '' : 'pending'}`} />
-                <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-3)' }}>
-                  {syncing ? 'syncing' : pending}
+                <span style={{ fontSize: 10, fontFamily: 'var(--font-sans)', color: 'var(--text-3)' }}>
+                  {syncing ? 'syncing…' : `${pending} unsynced`}
                 </span>
               </div>
             )}
@@ -68,7 +92,16 @@ export default function VolunteerLayout() {
         <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <Routes>
             <Route index element={<Navigate to="home" replace />} />
-            <Route path="home"     element={<VolunteerHome pending={pending} syncing={syncing} onNav={k => k === 'add' ? setAddOpen(true) : navigate(`/vol/${k}`)} />} />
+            <Route path="home"     element={<VolunteerHome
+              pending={pending}
+              syncing={syncing}
+              onSync={handleSync}
+              onNav={k => k === 'add' ? setAddOpen(true) : navigate(`/vol/${k}`)}
+              onOpenContact={(contactId) => {
+                // FIX-009: Navigate to contacts page with the contact pre-selected
+                navigate('/vol/contacts', { state: { openContactId: contactId } });
+              }}
+            />} />
             <Route path="contacts" element={<ContactsList />} />
             <Route path="queue"    element={<CallQueue />} />
             <Route path="profile"  element={<VolunteerProfile />} />

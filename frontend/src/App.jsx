@@ -37,8 +37,8 @@ function LoadingScreen({ slowStart = false }) {
       <Spinner />
       {/* P2-5.4: Cold start message after 2.5s */}
       {slowStart && (
-        <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginTop: 4, animation: 'pageIn 0.3s ease-out' }}>
-          Starting up… this takes a few seconds
+        <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontWeight: 300, marginTop: 4, animation: 'pageIn 0.3s ease-out' }}>
+          Starting up…
         </div>
       )}
     </div>

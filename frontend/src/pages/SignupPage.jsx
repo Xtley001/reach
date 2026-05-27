@@ -239,7 +239,7 @@ export default function SignupPage() {
             {step === 0 && (
               <form onSubmit={e => { e.preventDefault(); stepNameDone(); }} noValidate>
                 <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Create your account</h1>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-sans)', fontWeight: 300 }}>
                   Volunteer registration
                 </p>
 
@@ -271,7 +271,7 @@ export default function SignupPage() {
             {step === 1 && (
               <form onSubmit={e => { e.preventDefault(); stepContactDone(); }} noValidate>
                 <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>How do we reach you?</h1>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-sans)', fontWeight: 300 }}>
                   We'll send a verification code here
                 </p>
 

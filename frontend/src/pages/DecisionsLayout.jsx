@@ -88,7 +88,7 @@ export default function DecisionsLayout() {
       <div className="topbar glass">
         <div>
           <div className="topbar-brand">Decisions</div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)' }}>
             {count} entered this session
           </div>
         </div>

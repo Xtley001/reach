@@ -21,7 +21,7 @@ function FlameIcon() {
   );
 }
 
-export default function VolunteerHome({ pending, syncing, onSync, onNav }) {
+export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenContact }) {
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [recent, setRecent]   = useState([]);
@@ -74,7 +74,7 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav }) {
       {/* Stats */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-value serif">{stats.total_contacts}</div>
+          <div className="stat-value">{stats.total_contacts}</div>
           <div className="stat-label">Total Contacts</div>
         </div>
         <div className="stat-card">
@@ -82,11 +82,11 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav }) {
           <div className="stat-label">Confirmed</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--amber)' }}>{stats.awaiting}</div>
+          <div className="stat-value">{stats.awaiting}</div>
           <div className="stat-label">Msg Sent</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--text-2)' }}>{stats.unreached}</div>
+          <div className="stat-value">{stats.unreached}</div>
           <div className="stat-label">Unreached</div>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav }) {
           </div>
           <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
             {recent.map(c => (
-              <div key={c.id} className="contact-row" onClick={() => onNav('contacts')}>
+              <div key={c.id} className="contact-row" onClick={() => onOpenContact ? onOpenContact(c.id) : onNav('contacts')}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="contact-name">{c.name}</div>
                   <div className="contact-loc">{c.location}</div>
@@ -139,7 +139,7 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav }) {
         <div style={{ fontSize: 13, color: 'var(--text-2)', fontStyle: 'italic', lineHeight: 1.6, marginBottom: 8 }}>
           "{verse.text}"
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>{verse.ref}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontWeight: 500 }}>{verse.ref}</div>
       </div>
     </div>
   );

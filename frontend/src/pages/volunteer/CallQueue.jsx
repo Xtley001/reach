@@ -30,14 +30,28 @@ export default function CallQueue() {
     // Show undo for 3s
     setUndoItem(item);
     clearTimeout(undoTimer.current);
-    undoTimer.current = setTimeout(() => {
+    undoTimer.current = setTimeout(async () => {
       setUndoItem(null);
-      api.updateStatus(item.contact_id, code).catch(() => {
+      try {
+        await api.updateStatus(item.contact_id, code);
+
+        // FIX-BE-003: Auto-escalate to unreachable after 2 no-answer attempts
+        if (code === 'no_answer') {
+          try {
+            const detail = await api.getContactDetail(item.contact_id);
+            const noAnswerCount = (detail?.statuses || [])
+              .filter(s => s.status_code === 'no_answer').length;
+            if (noAnswerCount >= 2) {
+              await api.updateStatus(item.contact_id, 'unreachable');
+              toast('Marked unreachable after 2 no-answer attempts', 'info');
+            }
+          } catch {
+            // Non-fatal — escalation is best-effort
+          }
+        }
+      } catch {
         toast('Failed to save outcome', 'error');
         setQueue(q => [item, ...q]);
-      });
-      if (code === 'no_answer') {
-        // After 2 no-answer: set unreachable — handled server-side
       }
       invalidate('call:queue');
       invalidate('contacts:mine');

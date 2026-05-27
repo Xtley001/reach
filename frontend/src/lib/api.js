@@ -119,6 +119,30 @@ export const api = {
   getLogistics()              { return request('GET', '/hub/logistics'); },
   updateLogistics(id, b)      { return request('PATCH', `/hub/logistics/${id}`, b); },
 
+  // FIX-003: Previously missing — VolunteerDetail and MinisterVolunteerDetail were crashing
+  getVolunteerDetail(id)          { return request('GET', `/hub/volunteers/${id}/detail`); },
+  getMinisterVolunteerDetail(id)  { return request('GET', `/minister/volunteers/${id}/detail`); },
+  forceLogout(id)                 { return request('POST', `/hub/volunteers/${id}/force-logout`); },
+
+  // FIX-004 + FIX-007: Download helper and minister hubs endpoint
+  async downloadExport(path) {
+    const response = await fetch(`${BASE}${path}`, {
+      headers: { Authorization: `Bearer ${tokenStore.get()}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Export failed');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = path.split('/').pop() + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+  getMinisterHubs()           { return request('GET', '/minister/hubs'); },
+
   // Templates
   getActiveTemplates() { return request('GET', '/templates/active'); },
 

@@ -75,7 +75,7 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
     <div className="page">
       {/* Back */}
       <div className="page-header" style={{ paddingBottom:0 }}>
-        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--fmono)', padding:0, marginBottom:20, display:'flex', alignItems:'center', gap:6 }}>
+        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20, display:'flex', alignItems:'center', gap:6 }}>
           ← All Volunteers
         </button>
       </div>
@@ -125,16 +125,16 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
           {data.phone && (
             <div style={{ display:'flex', gap:8, marginTop:14, paddingTop:14, borderTop:'1px solid var(--bd)' }}>
               <a href={`https://wa.me/${data.phone.replace('+','')}`} target="_blank" rel="noopener noreferrer"
-                style={{ flex:1, padding:'8px 0', borderRadius:6, background:'rgba(74,222,128,.08)', border:'1px solid rgba(74,222,128,.2)', color:'#4ade80', fontSize:11, textAlign:'center', textDecoration:'none', fontFamily:'var(--fmono)' }}>
+                style={{ flex:1, padding:'8px 0', borderRadius:6, background:'var(--bg-3)', border:'1px solid var(--border)', color:'var(--green)', fontSize:11, textAlign:'center', textDecoration:'none', fontFamily:'var(--font-sans)' }}>
                 WhatsApp
               </a>
               <a href={`tel:${data.phone}`}
-                style={{ flex:1, padding:'8px 0', borderRadius:6, background:'rgba(96,165,250,.08)', border:'1px solid rgba(96,165,250,.2)', color:'#60a5fa', fontSize:11, textAlign:'center', textDecoration:'none', fontFamily:'var(--fmono)' }}>
+                style={{ flex:1, padding:'8px 0', borderRadius:6, background:'var(--bg-3)', border:'1px solid var(--border)', color:'var(--text)', fontSize:11, textAlign:'center', textDecoration:'none', fontFamily:'var(--font-sans)' }}>
                 Call
               </a>
               {data.status === 'pending' && (
                 <button onClick={() => setConfirming({ action:'approve' })}
-                  style={{ flex:1, padding:'8px 0', borderRadius:6, background:'rgba(200,184,154,.1)', border:'1px solid var(--acd)', color:'var(--accent)', fontSize:11, cursor:'pointer', fontFamily:'var(--fmono)' }}>
+                  style={{ flex:1, padding:'8px 0', borderRadius:6, background:'rgba(200,184,154,.1)', border:'1px solid var(--acd)', color:'var(--accent)', fontSize:11, cursor:'pointer', fontFamily:'var(--font-sans)' }}>
                   Approve
                 </button>
               )}
@@ -145,13 +145,13 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
         {/* ── Stats row ─────────────────────────────────────── */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:20 }}>
           {[
-            { label:'Contacts',     value: data.total_contacts,  color:'var(--accent)' },
-            { label:'Confirmed',    value: data.confirmed,        color:'#4ade80' },
-            { label:'Msg Sent',     value: data.messages_sent,    color:'#60a5fa' },
-            { label:'Pending Call', value: data.pending_calls,    color:'#fbbf24' },
+            { label:'Contacts',     value: data.total_contacts,  color:'var(--text)' },
+            { label:'Confirmed',    value: data.confirmed,        color:'var(--green)' },
+            { label:'Msg Sent',     value: data.messages_sent,    color:'var(--text)' },
+            { label:'Pending Call', value: data.pending_calls,    color:'var(--text)' },
           ].map(s => (
             <div key={s.label} style={{ background:'var(--sf)', border:'1px solid var(--bd)', borderRadius:8, padding:'12px 10px', textAlign:'center' }}>
-              <div style={{ fontSize:22, fontWeight:700, color:s.color, fontFamily:'var(--fmono)' }}>{s.value ?? 0}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:s.color, fontFamily:'var(--font-sans)' }}>{s.value ?? 0}</div>
               <div style={{ fontSize:10, color:'var(--tf)', marginTop:2 }}>{s.label}</div>
             </div>
           ))}
@@ -161,7 +161,7 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
         <div style={{ marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ fontWeight:600, fontSize:13 }}>Contact List</div>
           <select value={filter} onChange={e => setFilter(e.target.value)}
-            style={{ background:'var(--sf)', border:'1px solid var(--bd)', color:'var(--td)', borderRadius:6, padding:'5px 10px', fontSize:11, fontFamily:'var(--fmono)', cursor:'pointer' }}>
+            style={{ background:'var(--sf)', border:'1px solid var(--bd)', color:'var(--td)', borderRadius:6, padding:'5px 10px', fontSize:11, fontFamily:'var(--font-sans)', cursor:'pointer' }}>
             <option value="all">All statuses</option>
             {Object.entries(STATUS_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
             <option value="none">No status</option>
@@ -177,8 +177,8 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{c.name}</div>
                     <div style={{ fontSize:11, color:'var(--td)' }}>{c.location || c.phone || '—'}</div>
-                    {c.phone && c.location && <div style={{ fontSize:10, color:'var(--tf)', fontFamily:'var(--fmono)' }}>{c.phone}</div>}
-                    {c.needs_transport && <div style={{ fontSize:10, color:'#fb923c', marginTop:2 }}>🚌 Needs transport</div>}
+                    {c.phone && c.location && <div style={{ fontSize:10, color:'var(--tf)', fontFamily:'var(--font-mono)' }}>{c.phone}</div>}
+                    {c.needs_transport && <div style={{ fontSize:10, color:'var(--amber)', marginTop:2 }}>🚌 Needs transport</div>}
                   </div>
                   <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
                     {c.current_status && (
@@ -200,11 +200,11 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
             <div style={{ fontSize:11, color:'var(--tf)', marginBottom:12, textTransform:'uppercase', letterSpacing:'.1em' }}>Actions</div>
             <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
               <button onClick={() => setConfirming({ action:'logout' })}
-                style={{ padding:'8px 16px', borderRadius:6, background:'transparent', border:'1px solid rgba(248,113,113,.25)', color:'#f87171', fontSize:11, cursor:'pointer', fontFamily:'var(--fmono)' }}>
+                style={{ padding:'8px 16px', borderRadius:6, background:'transparent', border:'1px solid rgba(var(--red-rgb, 176,58,46),.25)', color:'var(--red)', fontSize:11, cursor:'pointer', fontFamily:'var(--font-sans)' }}>
                 Force Sign Out
               </button>
               <button onClick={() => setConfirming({ action:'reject' })}
-                style={{ padding:'8px 16px', borderRadius:6, background:'transparent', border:'1px solid rgba(248,113,113,.25)', color:'#f87171', fontSize:11, cursor:'pointer', fontFamily:'var(--fmono)' }}>
+                style={{ padding:'8px 16px', borderRadius:6, background:'transparent', border:'1px solid rgba(var(--red-rgb, 176,58,46),.25)', color:'var(--red)', fontSize:11, cursor:'pointer', fontFamily:'var(--font-sans)' }}>
                 Suspend Account
               </button>
             </div>

@@ -49,7 +49,7 @@ export default function HubContacts() {
                   <div className="contact-name">{c.name}</div>
                   <div className="contact-loc">{c.location}</div>
                   {c.volunteer_name && (
-                    <div className="contact-meta">{c.volunteer_name}</div>
+                    <div className="contact-meta">Added by {c.volunteer_name}</div>
                   )}
                 </div>
                 <StatusBadge status={c.current_status} />

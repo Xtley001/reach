@@ -51,10 +51,26 @@ async def list_hub_volunteers(
     user: User = Depends(require_hub_leader),
     db: Session = Depends(get_db),
 ):
+    from sqlalchemy import func
+    # FIX-BE-009: Include hub_leader role so promoted volunteers remain visible
     volunteers = db.query(User).filter(
         User.hub_id == user.hub_id,
-        User.role == UserRole.volunteer,
+        User.role.in_([UserRole.volunteer, UserRole.hub_leader]),
     ).all()
+
+    # FIX-010: Bulk contact count — avoids N+1; was always returning 0
+    volunteer_ids = [v.id for v in volunteers]
+    contact_counts = {}
+    if volunteer_ids:
+        contact_counts = dict(
+            db.query(Contact.added_by, func.count(Contact.id))
+            .filter(
+                Contact.added_by.in_(volunteer_ids),
+                Contact.deleted_at.is_(None),
+            )
+            .group_by(Contact.added_by)
+            .all()
+        )
 
     return {"volunteers": [
         {
@@ -64,8 +80,10 @@ async def list_hub_volunteers(
             "email":          v.email,
             "avatar_url":     v.avatar_url,
             "status":         v.status,
+            "role":           v.role,
             "created_at":     v.created_at.isoformat(),
             "last_active_at": v.last_active_at.isoformat() if v.last_active_at else None,
+            "contact_count":  contact_counts.get(v.id, 0),  # FIX-010
         }
         for v in volunteers
     ]}
@@ -76,6 +94,10 @@ async def pending_volunteers(
     user: User = Depends(require_hub_leader),
     db: Session = Depends(get_db),
 ):
+    # FIX-BE-007: This endpoint is not called by the current frontend.
+    # The main GET /hub/volunteers returns all statuses; the frontend filters by status client-side
+    # via filter pills. This endpoint is kept for potential future use (e.g. push notification
+    # badge counts or a dedicated "pending" widget) but should not be expanded until needed.
     pending = db.query(User).filter(
         User.hub_id == user.hub_id,
         User.status == UserStatus.pending,
@@ -100,7 +122,28 @@ async def approve_volunteer(
     volunteer.status = UserStatus.active
     db.commit()
     log_action(db, user, "volunteer.approved", "user", volunteer_id)
-    # In production: send SMS/WhatsApp notification to volunteer
+
+    # FIX-BE-002: Notify volunteer of approval via email (don't fail approval if email fails)
+    try:
+        if volunteer.email:
+            from ..services.email import email_client
+            await email_client.send(
+                to=volunteer.email,
+                subject="You've been approved — REACH",
+                template="approval_notification",
+                context={
+                    "volunteer_name": volunteer.name or "Volunteer",
+                    "hub_leader_name": user.name or "Your Hub Leader",
+                    "app_url": "https://reach-livid.vercel.app",
+                },
+            )
+    except Exception as notify_err:
+        # Don't fail the approval if notification fails — just log
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Could not send approval notification to {volunteer.email}: {notify_err}"
+        )
+
     return {"detail": "Volunteer approved"}
 
 
@@ -120,6 +163,25 @@ async def reject_volunteer(
     volunteer.status = UserStatus.rejected
     db.commit()
     log_action(db, user, "volunteer.rejected", "user", volunteer_id)
+
+    # FIX-BE-002: Notify volunteer of rejection
+    try:
+        if volunteer.email:
+            from ..services.email import email_client
+            await email_client.send(
+                to=volunteer.email,
+                subject="Update on your REACH application",
+                template="rejection_notification",
+                context={
+                    "volunteer_name": volunteer.name or "Volunteer",
+                },
+            )
+    except Exception as notify_err:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Could not send rejection notification to {volunteer.email}: {notify_err}"
+        )
+
     return {"detail": "Volunteer rejected"}
 
 
@@ -298,21 +360,47 @@ async def all_volunteers(
     user: User = Depends(require_minister),
     db: Session = Depends(get_db),
 ):
+    from sqlalchemy import func
     query = db.query(User).filter(
         User.organisation_id == user.organisation_id,
-        User.role == UserRole.volunteer,
+        User.role.in_([UserRole.volunteer, UserRole.hub_leader]),
     )
     if hub_id:
         query = query.filter(User.hub_id == hub_id)
 
     volunteers = query.all()
+
+    # FIX-011: Bulk contact count — was always returning 0
+    volunteer_ids = [v.id for v in volunteers]
+    contact_counts = {}
+    if volunteer_ids:
+        contact_counts = dict(
+            db.query(Contact.added_by, func.count(Contact.id))
+            .filter(
+                Contact.added_by.in_(volunteer_ids),
+                Contact.deleted_at.is_(None),
+            )
+            .group_by(Contact.added_by)
+            .all()
+        )
+
+    # Resolve hub names in bulk
+    hub_ids = list({v.hub_id for v in volunteers if v.hub_id})
+    hub_names = {}
+    if hub_ids:
+        hubs = db.query(Hub).filter(Hub.id.in_(hub_ids)).all()
+        hub_names = {h.id: h.name for h in hubs}
+
     return {"volunteers": [
         {
-            "id": v.id,
-            "name": v.name,
-            "phone": v.phone,
-            "hub_id": v.hub_id,
-            "status": v.status,
+            "id":             v.id,
+            "name":           v.name,
+            "phone":          v.phone,
+            "hub_id":         v.hub_id,
+            "hub_name":       hub_names.get(v.hub_id) if v.hub_id else None,
+            "status":         v.status,
+            "role":           v.role,
+            "contact_count":  contact_counts.get(v.id, 0),  # FIX-011
             "last_active_at": v.last_active_at.isoformat() if v.last_active_at else None,
         }
         for v in volunteers
@@ -451,12 +539,33 @@ async def export_confirmed(
         joinedload(Contact.statuses)
     ).filter(Contact.campaign_id == campaign.id).all()
 
-    confirmed = []
-    for c in contacts:
-        if c.statuses:
-            latest = sorted(c.statuses, key=lambda s: s.updated_at)[-1].status_code
-            if latest == ContactStatusCode.coming:
-                confirmed.append(c)
+    # FIX-BE-005: Use SQL subquery to find latest status instead of Python sort
+    # This avoids loading all status history rows into memory for filtering
+    from sqlalchemy import select
+    latest_status_subq = (
+        select(
+            ContactStatus.contact_id,
+            func.max(ContactStatus.updated_at).label('max_ts'),
+        )
+        .group_by(ContactStatus.contact_id)
+        .subquery()
+    )
+
+    confirmed_ids_query = (
+        db.query(ContactStatus.contact_id)
+        .join(
+            latest_status_subq,
+            (ContactStatus.contact_id == latest_status_subq.c.contact_id) &
+            (ContactStatus.updated_at == latest_status_subq.c.max_ts)
+        )
+        .filter(
+            ContactStatus.status_code == ContactStatusCode.coming,
+            ContactStatus.contact_id.in_([c.id for c in contacts]),
+        )
+        .all()
+    )
+    confirmed_id_set = {row[0] for row in confirmed_ids_query}
+    confirmed = [c for c in contacts if c.id in confirmed_id_set]
 
     log_action(db, user, "export.confirmed", metadata={"count": len(confirmed)})
 
@@ -520,6 +629,161 @@ async def export_logistics(
     return StreamingResponse(
         generate(), media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=logistics.csv"}
+    )
+
+
+@minister_router.get("/export/all")
+async def export_all_contacts(
+    user: User = Depends(require_minister),
+    db: Session = Depends(get_db),
+):
+    """FIX-BE-001: CSV export of all contacts with current status."""
+    campaign = db.query(Campaign).filter(
+        Campaign.organisation_id == user.organisation_id,
+        Campaign.status == CampaignStatus.active,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="No active campaign")
+
+    contacts = db.query(Contact).options(
+        joinedload(Contact.statuses)
+    ).filter(
+        Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
+    ).all()
+
+    # Resolve volunteer and hub names
+    vol_ids = list({c.added_by for c in contacts if c.added_by})
+    vol_names = {}
+    if vol_ids:
+        vols = db.query(User).filter(User.id.in_(vol_ids)).all()
+        vol_map = {v.id: v for v in vols}
+        hub_ids = list({v.hub_id for v in vols if v.hub_id})
+        hub_map = {}
+        if hub_ids:
+            hubs = db.query(Hub).filter(Hub.id.in_(hub_ids)).all()
+            hub_map = {h.id: h.name for h in hubs}
+        for v in vols:
+            vol_names[v.id] = {"name": v.name, "hub": hub_map.get(v.hub_id, "")}
+
+    log_action(db, user, "export.all_contacts", metadata={"count": len(contacts)})
+
+    def generate():
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Name", "Phone", "Location", "Status", "Added By", "Hub", "Transport Needed", "Created At"])
+        yield output.getvalue()
+        output.truncate(0); output.seek(0)
+        for c in contacts:
+            current = "unknown"
+            if c.statuses:
+                latest = sorted(c.statuses, key=lambda s: s.updated_at)[-1]
+                current = latest.status_code.value if hasattr(latest.status_code, "value") else str(latest.status_code)
+            vol_info = vol_names.get(c.added_by, {})
+            writer.writerow([
+                c.name, c.phone, c.location or "", current,
+                vol_info.get("name", ""), vol_info.get("hub", ""),
+                "Yes" if c.needs_transport else "No",
+                c.created_at.date().isoformat(),
+            ])
+            yield output.getvalue()
+            output.truncate(0); output.seek(0)
+
+    return StreamingResponse(
+        generate(), media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=all_contacts_{campaign.id[:8]}.csv"}
+    )
+
+
+@minister_router.get("/export/attendance")
+async def export_attendance(
+    user: User = Depends(require_minister),
+    db: Session = Depends(get_db),
+):
+    """FIX-BE-001: CSV export of attendance check-ins."""
+    from ..models import AttendanceRecord
+    campaign = db.query(Campaign).filter(
+        Campaign.organisation_id == user.organisation_id,
+        Campaign.status == CampaignStatus.active,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="No active campaign")
+
+    try:
+        records = db.query(AttendanceRecord).filter(
+            AttendanceRecord.campaign_id == campaign.id
+        ).all()
+    except Exception:
+        records = []
+
+    log_action(db, user, "export.attendance", metadata={"count": len(records)})
+
+    def generate():
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Name", "Phone", "Check-In Time", "Walk-In", "Gate Volunteer"])
+        yield output.getvalue()
+        output.truncate(0); output.seek(0)
+        for r in records:
+            writer.writerow([
+                getattr(r, "name", ""),
+                getattr(r, "phone", ""),
+                getattr(r, "checked_in_at", ""),
+                "Yes" if getattr(r, "is_walk_in", False) else "No",
+                getattr(r, "gate_volunteer_name", ""),
+            ])
+            yield output.getvalue()
+            output.truncate(0); output.seek(0)
+
+    return StreamingResponse(
+        generate(), media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=attendance.csv"}
+    )
+
+
+@minister_router.get("/export/walk_ins")
+async def export_walk_ins(
+    user: User = Depends(require_minister),
+    db: Session = Depends(get_db),
+):
+    """FIX-BE-001: CSV export of walk-in registrations only."""
+    from ..models import AttendanceRecord
+    campaign = db.query(Campaign).filter(
+        Campaign.organisation_id == user.organisation_id,
+        Campaign.status == CampaignStatus.active,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="No active campaign")
+
+    try:
+        records = db.query(AttendanceRecord).filter(
+            AttendanceRecord.campaign_id == campaign.id,
+            AttendanceRecord.is_walk_in == True,
+        ).all()
+    except Exception:
+        records = []
+
+    log_action(db, user, "export.walk_ins", metadata={"count": len(records)})
+
+    def generate():
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Name", "Phone", "Location", "Registered At"])
+        yield output.getvalue()
+        output.truncate(0); output.seek(0)
+        for r in records:
+            writer.writerow([
+                getattr(r, "name", ""),
+                getattr(r, "phone", ""),
+                getattr(r, "location", ""),
+                getattr(r, "checked_in_at", ""),
+            ])
+            yield output.getvalue()
+            output.truncate(0); output.seek(0)
+
+    return StreamingResponse(
+        generate(), media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=walk_ins.csv"}
     )
 
 

@@ -38,7 +38,7 @@ export default function HubDashboard() {
           </div>
           {daysToGo !== null && (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 28, color: 'var(--gold)', lineHeight: 1 }}>{daysToGo}</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 28, color: 'var(--gold)', lineHeight: 1 }}>{daysToGo}</div>
               <div style={{ fontSize: 10, color: 'var(--text-3)' }}>days to go</div>
             </div>
           )}
@@ -47,7 +47,7 @@ export default function HubDashboard() {
       <div className="page-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-value serif">{d.total_contacts || 0}</div>
+            <div className="stat-value">{d.total_contacts || 0}</div>
             <div className="stat-label">Contacts</div>
           </div>
           <div className="stat-card">
@@ -60,7 +60,7 @@ export default function HubDashboard() {
           </div>
           <div className="stat-card" style={{ cursor: d.pending_approvals > 0 ? 'pointer' : 'default' }}
             onClick={() => d.pending_approvals > 0 && navigate('/hub/volunteers')}>
-            <div className="stat-value" style={{ color: d.pending_approvals > 0 ? 'var(--amber)' : 'var(--text)' }}>{d.pending_approvals || 0}</div>
+            <div className="stat-value" style={{}}>{d.pending_approvals || 0}</div>
             <div className="stat-label">Pending</div>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function HubDashboard() {
             {d.recent_activity.map((a, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < d.recent_activity.length - 1 ? '1px solid var(--border)' : 'none' }}>
                 <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{a.description}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{a.time_ago}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', flexShrink: 0 }}>{a.time_ago}</span>
               </div>
             ))}
           </div>

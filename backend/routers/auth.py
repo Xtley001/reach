@@ -379,8 +379,12 @@ async def refresh_token(
             RefreshToken.revoked    == True,
             RefreshToken.expires_at  < cutoff,
         ).delete(synchronize_session=False)
-    except Exception:
-        pass
+    except Exception as cleanup_err:
+        # FIX-BE-006: Never silently swallow exceptions in except blocks
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Non-critical: failed to prune expired refresh tokens for user {user.id}: {cleanup_err}"
+        )
     db.commit()
 
     response.set_cookie(

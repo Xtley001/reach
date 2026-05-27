@@ -30,7 +30,7 @@ export default function HubDetail({ hubId, onBack, onSelectVolunteer }) {
   return (
     <div className="page">
       <div className="page-header" style={{ paddingBottom:0 }}>
-        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--fmono)', padding:0, marginBottom:20 }}>
+        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20 }}>
           ← All Hubs
         </button>
       </div>
@@ -49,11 +49,11 @@ export default function HubDetail({ hubId, onBack, onSelectVolunteer }) {
               {data.leader_phone && (
                 <div style={{ display:'flex', gap:8, marginTop:6 }}>
                   <a href={`https://wa.me/${data.leader_phone.replace('+','')}`} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize:10, padding:'3px 10px', borderRadius:4, background:'rgba(74,222,128,.08)', border:'1px solid rgba(74,222,128,.2)', color:'#4ade80', textDecoration:'none', fontFamily:'var(--fmono)' }}>
+                    style={{ fontSize:10, padding:'3px 10px', borderRadius:4, background:'var(--bg-3)', border:'1px solid var(--border)', color:'var(--green)', textDecoration:'none', fontFamily:'var(--font-sans)' }}>
                     WhatsApp
                   </a>
                   <a href={`tel:${data.leader_phone}`}
-                    style={{ fontSize:10, padding:'3px 10px', borderRadius:4, background:'rgba(96,165,250,.08)', border:'1px solid rgba(96,165,250,.2)', color:'#60a5fa', textDecoration:'none', fontFamily:'var(--fmono)' }}>
+                    style={{ fontSize:10, padding:'3px 10px', borderRadius:4, background:'var(--bg-3)', border:'1px solid var(--border)', color:'var(--text)', textDecoration:'none', fontFamily:'var(--font-sans)' }}>
                     Call
                   </a>
                 </div>
@@ -65,11 +65,11 @@ export default function HubDetail({ hubId, onBack, onSelectVolunteer }) {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:14 }}>
             {[
               { label:'Volunteers', value: data.volunteers?.length ?? 0, color:'var(--accent)' },
-              { label:'Contacts',   value: data.total_contacts,           color:'#60a5fa' },
-              { label:'Confirmed',  value: data.confirmed,                 color:'#4ade80' },
+              { label:'Contacts',   value: data.total_contacts,           color:'var(--text)' },
+              { label:'Confirmed',  value: data.confirmed,                 color:'var(--green)' },
             ].map(s => (
               <div key={s.label} style={{ textAlign:'center', padding:'10px 8px', background:'var(--bg)', borderRadius:8, border:'1px solid var(--bd)' }}>
-                <div style={{ fontSize:20, fontWeight:700, color:s.color, fontFamily:'var(--fmono)' }}>{s.value ?? 0}</div>
+                <div style={{ fontSize:20, fontWeight:800, color:s.color, fontFamily:'var(--font-sans)' }}>{s.value ?? 0}</div>
                 <div style={{ fontSize:10, color:'var(--tf)', marginTop:2 }}>{s.label}</div>
               </div>
             ))}
@@ -123,7 +123,7 @@ function VolunteerMiniCard({ v, onClick }) {
         </div>
         <div style={{ fontSize:11, color:'var(--td)', display:'flex', gap:8 }}>
           <span>{v.total_contacts ?? 0} contacts</span>
-          {v.confirmed > 0 && <span style={{ color:'#4ade80' }}>✓ {v.confirmed}</span>}
+          {v.confirmed > 0 && <span style={{ color:'var(--green)' }}>✓ {v.confirmed}</span>}
           <span style={{ color:'var(--tf)' }}>Active {lastActive}</span>
         </div>
         <div style={{ marginTop:5, height:2, background:'var(--border)', borderRadius:1, overflow:'hidden', maxWidth:160 }}>

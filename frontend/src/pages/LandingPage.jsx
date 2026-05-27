@@ -53,13 +53,13 @@ export default function LandingPage() {
           {/* Label above heading */}
           <div style={{ marginBottom: 20, textAlign: 'center' }}>
             <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              color: 'var(--text-3)', letterSpacing: '0.18em', textTransform: 'uppercase',
+              fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 500,
+              color: 'var(--text-3)', letterSpacing: '0.14em', textTransform: 'uppercase',
             }}>Ministry Outreach Platform</span>
           </div>
 
           <h1 style={{
-            fontFamily: 'var(--font-display)', fontStyle: 'italic',
+            fontFamily: 'var(--font-sans)', fontStyle: 'normal', fontWeight: 800,
             fontSize: 'clamp(40px, 5.5vw, 64px)',
             lineHeight: 1.15, letterSpacing: '-0.01em',
             color: 'var(--text)', marginBottom: 24,
@@ -107,8 +107,8 @@ export default function LandingPage() {
                 <p style={{
                   fontSize: 11,
                   color: 'var(--text-3)',
-                  fontFamily: 'var(--font-mono)',
-                  letterSpacing: '0.04em',
+                  fontFamily: 'var(--font-sans)',
+                  fontWeight: 300,
                   marginBottom: 4,
                 }}>
                   Paste your invite link or code
@@ -147,8 +147,8 @@ export default function LandingPage() {
             color: 'var(--text-3)',
             textAlign: 'center',
             marginTop: 16,
-            fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.04em',
+            fontFamily: 'var(--font-sans)',
+            fontWeight: 300,
             lineHeight: 1.6,
           }}>
             New volunteer? Your hub leader will send you an invite link.
@@ -173,8 +173,8 @@ export default function LandingPage() {
                 textAlign: 'left',
               }}>
                 <span style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 10,
-                  color: 'var(--highlight)', letterSpacing: '0.12em',
+                  fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700,
+                  color: 'var(--green)', letterSpacing: '0.04em',
                   flexShrink: 0, paddingTop: 3,
                 }}>{s.n}</span>
                 <div>

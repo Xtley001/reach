@@ -103,7 +103,7 @@ export default function MinisterDemographics() {
                 <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
                   <div style={{ width: 8, height: 8, borderRadius: 2, background: STATUS_COLORS[s.key] || 'var(--border)', flexShrink: 0 }} />
                   <span style={{ color: 'var(--text-2)' }}>{s.name}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{s.count}</span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700 }}>{s.count}</span>
                 </div>
               ))}
             </div>
@@ -124,8 +124,8 @@ export default function MinisterDemographics() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--text-3)', fontFamily: 'var(--font-mono)' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)', fontFamily: 'var(--font-mono)' }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10, fill: 'var(--text-3)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
                   <Tooltip {...TOOLTIP_STYLE} />
                   <Area type="monotone" dataKey="added" stroke="var(--gold)" strokeWidth={2} fill="url(#goldGrad)" name="Added" dot={false} />
                 </AreaChart>
@@ -160,9 +160,9 @@ export default function MinisterDemographics() {
                   {hubData.map((h, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '8px', color: 'var(--text)', fontWeight: 500 }}>{h.hub_name}</td>
-                      <td style={{ padding: '8px', fontFamily: 'var(--font-mono)' }}>{h.contacts}</td>
-                      <td style={{ padding: '8px', fontFamily: 'var(--font-mono)', color: 'var(--green)' }}>{h.confirmed}</td>
-                      <td style={{ padding: '8px', fontFamily: 'var(--font-mono)' }}>{h.volunteers}</td>
+                      <td style={{ padding: '8px', fontFamily: 'var(--font-sans)', fontWeight: 600 }}>{h.contacts}</td>
+                      <td style={{ padding: '8px', fontFamily: 'var(--font-sans)', fontWeight: 700, color: 'var(--green)' }}>{h.confirmed}</td>
+                      <td style={{ padding: '8px', fontFamily: 'var(--font-sans)', fontWeight: 600 }}>{h.volunteers}</td>
                       <td style={{ padding: '8px', minWidth: 80 }}>
                         <div style={{ background: 'var(--bg-3)', borderRadius: 9999, height: 6, overflow: 'hidden' }}>
                           <div style={{ background: 'var(--gold)', height: '100%', width: `${Math.min(100, (h.confirmed / Math.max(h.contacts, 1)) * 100)}%`, borderRadius: 9999, transition: 'width 0.6s' }} />

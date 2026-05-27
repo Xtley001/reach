@@ -205,9 +205,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # ─── Routers ──────────────────────────────────────────────────────────────────
-# P1-5.1: All API routes versioned under /v1
-# Frontend api.js BASE should include /v1 suffix.
-# Old unversioned paths kept as aliases during transition.
+# FIX-012: All API routes are served exclusively under /v1.
+# Duplicate non-prefixed registrations removed — they bypassed rate-limiting on /v1/auth/send-otp
+# and created an unintended public attack surface.
 V1 = "/v1"
 app.include_router(auth_router,        prefix=V1)
 app.include_router(invites_router,     prefix=V1)
@@ -222,13 +222,6 @@ app.include_router(minister_router,    prefix=V1)
 app.include_router(campaign_router,    prefix=V1)
 app.include_router(attendance_router,  prefix=V1)
 app.include_router(decisions_router,   prefix=V1)
-# Legacy unversioned aliases — remove after all clients updated
-app.include_router(auth_router)
-app.include_router(invites_router)
-app.include_router(onboarding_router)
-app.include_router(contacts_router)
-app.include_router(attendance_router)
-app.include_router(decisions_router)
 
 
 @app.get("/health", include_in_schema=False)

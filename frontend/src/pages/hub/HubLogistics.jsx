@@ -79,7 +79,7 @@ function LogisticsRow({ item, onUpdate }) {
         <div className="contact-name">{item.contact_name}</div>
         <div className="contact-loc">{item.transport_location || 'Location not set'}</div>
         <div style={{ marginTop: 4 }}>
-          <a href={`tel:${item.phone}`} style={{ fontSize: 12, color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{item.phone}</a>
+          <a href={`tel:${item.phone}`} style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{item.phone}</a>
         </div>
       </div>
       <div>

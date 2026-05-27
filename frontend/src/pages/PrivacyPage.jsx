@@ -30,7 +30,7 @@ export default function PrivacyPage() {
 
       <main style={{ maxWidth: 600, margin: '0 auto', padding: '48px 24px 64px' }}>
         <h1 style={{
-          fontFamily: 'var(--font-display)', fontStyle: 'italic',
+          fontFamily: 'var(--font-sans)', fontStyle: 'normal', fontWeight: 800,
           fontSize: 'clamp(28px, 4vw, 36px)',
           color: 'var(--text)', marginBottom: 32, lineHeight: 1.2,
         }}>Privacy</h1>

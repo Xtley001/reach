@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { cached, invalidate, TTL } from '../../lib/cache';
-import { StatusBadge, Spinner, EmptyState, PageSkeleton, Modal } from '../../components/UI';
+import { StatusBadge, Spinner, PageSkeleton, Modal } from '../../components/UI';
 import { toast } from '../../lib/toast';
+// FIX-002: Import MinisterVolunteerDetail
+import MinisterVolunteerDetail from './MinisterVolunteerDetail';
 
 export default function MinisterVolunteers() {
   const [volunteers, setVolunteers] = useState([]);
@@ -13,6 +15,15 @@ export default function MinisterVolunteers() {
   const [inviteResult, setInviteResult] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [hubs, setHubs] = useState([]);
+  // FIX-002: selectedId drives MinisterVolunteerDetail drilldown
+  const [selectedId, setSelectedId] = useState(null);
+
+  function reload() {
+    invalidate('minister:volunteers');
+    cached('minister:volunteers', () => api.getMinisterVolunteers(), TTL.VOLUNTEERS)
+      .then(d => setVolunteers(d.volunteers || []))
+      .catch(() => {});
+  }
 
   useEffect(() => {
     cached('minister:volunteers', () => api.getMinisterVolunteers(), TTL.VOLUNTEERS)
@@ -20,6 +31,17 @@ export default function MinisterVolunteers() {
       .catch(() => setLoading(false));
     api.listHubs().then(d => setHubs(d || [])).catch(() => {});
   }, []);
+
+  // FIX-002: Render MinisterVolunteerDetail when a volunteer is selected
+  if (selectedId) {
+    return (
+      <MinisterVolunteerDetail
+        volunteerId={selectedId}
+        onBack={() => setSelectedId(null)}
+        backLabel="← Volunteers"
+      />
+    );
+  }
 
   const FILTERS = ['all','active','pending','rejected','hub_leader'];
   const filtered = volunteers.filter(v => {
@@ -33,7 +55,7 @@ export default function MinisterVolunteers() {
     try {
       const result = await api.createInvite(inviteForm);
       setInviteResult(result);
-      invalidate('minister:volunteers');
+      reload();
       toast('Invite created', 'success');
     } catch (e) {
       toast(e.message || 'Failed to create invite', 'error');
@@ -65,25 +87,41 @@ export default function MinisterVolunteers() {
         </div>
 
         {loading ? <PageSkeleton /> : filtered.length === 0 ? (
-          <EmptyState icon="👥" message="No volunteers match this filter." />
+          <div className="empty-state">
+            <div className="empty-state-msg">No volunteers match this filter.</div>
+          </div>
         ) : (
           <div>
             {filtered.map(v => (
-              <div key={v.id} className="contact-row" style={{ alignItems: 'flex-start' }}>
+              // FIX-002: onClick opens MinisterVolunteerDetail
+              <div
+                key={v.id}
+                className="contact-row"
+                style={{ alignItems: 'flex-start', cursor: 'pointer' }}
+                onClick={() => setSelectedId(v.id)}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="contact-name">{v.name || 'Unnamed'}</div>
-                  <div className="contact-loc">{v.hub_name || 'No hub'}</div>
-                  <div className="contact-meta" style={{ fontFamily: 'var(--font-mono)' }}>
-                    {v.contact_count || 0} contacts · {v.role}
+                  {/* FIX-011 display: suppress trailing bullet when count is 0 */}
+                  <div className="contact-loc">
+                    {[v.hub_name || 'No hub', v.contact_count > 0 ? `${v.contact_count} contacts` : null]
+                      .filter(Boolean).join(' · ')}
                   </div>
+                  {v.role === 'hub_leader' && (
+                    <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 2 }}>Hub Leader</div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                   <span className={`badge ${v.status === 'active' ? 'badge-green' : v.status === 'pending' ? 'badge-amber' : 'badge-red'}`}>
                     {v.status}
                   </span>
                   {v.phone && (
-                    <a href={`https://wa.me/${v.phone.replace('+','')}`} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 11, color: 'var(--green)', textDecoration: 'none' }}>WhatsApp</a>
+                    <a
+                      href={`https://wa.me/${v.phone.replace('+','')}`}
+                      target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}
+                      onClick={e => e.stopPropagation()}
+                    >WhatsApp</a>
                   )}
                 </div>
               </div>
@@ -92,7 +130,7 @@ export default function MinisterVolunteers() {
         )}
       </div>
 
-      {/* Invite Modal */}
+      {/* Invite Modal — FIX-006 pattern applied here too */}
       <Modal open={showInvite} onClose={() => setShowInvite(false)} title={inviteResult ? 'Invite Created' : 'Invite Hub Leader'}>
         {inviteResult ? (
           <div>
@@ -112,9 +150,7 @@ export default function MinisterVolunteers() {
                 Share via WhatsApp
               </a>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
-              Expires in 48 hours
-            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>Expires in 48 hours</div>
           </div>
         ) : (
           <div>
@@ -153,7 +189,7 @@ export default function MinisterVolunteers() {
             {inviteForm.channel === 'sms' ? (
               <div className="form-group">
                 <label className="field-label">Phone Number <span className="required">*</span></label>
-                <input className="field-input" type="tel" value={inviteForm.phone} onChange={e => setInviteForm(f => ({ ...f, phone: e.target.value }))} placeholder="+2348012345678" />
+                <input className="field-input" style={{ fontFamily: 'var(--font-mono)' }} type="tel" value={inviteForm.phone} onChange={e => setInviteForm(f => ({ ...f, phone: e.target.value }))} placeholder="+2348012345678" />
               </div>
             ) : (
               <div className="form-group">
@@ -170,3 +206,4 @@ export default function MinisterVolunteers() {
     </div>
   );
 }
+

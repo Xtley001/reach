@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cached, TTL } from '../../lib/cache';
-import { PageSkeleton } from '../../components/UI';
+import { PageSkeleton, Modal } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 function Countdown({ targetDate }) {
@@ -22,7 +22,7 @@ function Countdown({ targetDate }) {
   if (!diff) return null;
   return (
     <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
-      <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 48, color: 'var(--gold)', lineHeight: 1 }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 800, fontSize: 48, color: 'var(--gold)', lineHeight: 1 }}>
         {diff.d}
       </div>
       <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
@@ -37,6 +37,12 @@ export default function MinisterDashboard() {
   const [loading, setLoading]   = useState(true);
   const [attendance, setAttendance] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  // FIX-006: Invite modal state — lives here so dashboard button opens it inline
+  const [showInvite, setShowInvite]   = useState(false);
+  const [inviteForm, setInviteForm]   = useState({ name:'', phone:'', email:'', channel:'sms', role:'hub_leader', hub_id:'' });
+  const [inviteResult, setInviteResult] = useState(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [hubs, setHubs]               = useState([]);
   const navigate = useNavigate();
   const refreshRef = useRef();
 
@@ -65,6 +71,21 @@ export default function MinisterDashboard() {
   useEffect(() => {
     if (data?.attendance_mode_open) loadAttendance();
   }, [data?.attendance_mode_open]);
+
+  // FIX-006: Fetch hubs for invite dropdown
+  useEffect(() => {
+    api.listHubs().then(d => setHubs(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
+  async function sendInvite() {
+    setInviteLoading(true);
+    try {
+      const result = await api.createInvite(inviteForm);
+      setInviteResult(result);
+      toast('Invite created', 'success');
+    } catch (e) { toast(e.message || 'Failed to create invite', 'error'); }
+    setInviteLoading(false);
+  }
 
   async function toggleAttendanceMode() {
     if (!data?.active_campaign_id) { toast('No active campaign', 'error'); return; }
@@ -97,7 +118,7 @@ export default function MinisterDashboard() {
           )}
         </div>
         {/* P2-3.5: Navigate to volunteers page where invite modal lives */}
-        <button className="btn btn-primary btn-sm" onClick={() => navigate('/admin-panel/volunteers')}>
+        <button className="btn btn-primary btn-sm" onClick={() => { setShowInvite(true); setInviteResult(null); }}>
           + Invite Hub Leader
         </button>
       </div>
@@ -110,7 +131,7 @@ export default function MinisterDashboard() {
         {/* Stats */}
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-value serif">{(d.total_contacts || 0).toLocaleString()}</div>
+            <div className="stat-value">{(d.total_contacts || 0).toLocaleString()}</div>
             <div className="stat-label">Total Contacts</div>
           </div>
           <div className="stat-card">
@@ -166,10 +187,10 @@ export default function MinisterDashboard() {
                 { label: 'Not Yet', value: attendance.not_yet_arrived, color: 'var(--text-2)' },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, fontFamily: 'var(--font-display)', fontStyle: 'italic', color: s.color, lineHeight: 1 }}>
+                  <div style={{ fontSize: 28, fontFamily: 'var(--font-sans)', fontWeight: 800, color: s.color, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                     {s.value || 0}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4, fontFamily: 'var(--font-sans)' }}>
                     {s.label}
                   </div>
                 </div>
@@ -178,6 +199,64 @@ export default function MinisterDashboard() {
           )}
         </div>
       </div>
+
+      {/* FIX-006: Inline invite modal — stays on dashboard, no navigation */}
+      <Modal open={showInvite} onClose={() => setShowInvite(false)} title={inviteResult ? 'Invite Created' : 'Invite Hub Leader'}>
+        {inviteResult ? (
+          <div>
+            <div style={{ background: 'var(--bg-3)', borderRadius: 'var(--radius)', padding: 'var(--space-4)', marginBottom: 'var(--space-4)', wordBreak: 'break-all', fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>
+              {inviteResult.invite_url}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => { navigator.clipboard.writeText(inviteResult.invite_url); toast('Copied', 'success'); }}>Copy Link</button>
+              <a href={`https://wa.me/?text=${encodeURIComponent(`You've been invited to join REACH: ${inviteResult.invite_url}`)}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline" style={{ flex: 1, textDecoration: 'none' }}>WhatsApp</a>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>Expires in 48 hours</div>
+          </div>
+        ) : (
+          <div>
+            <div className="form-group">
+              <label className="field-label">Role</label>
+              <select className="field-select" value={inviteForm.role} onChange={e => setInviteForm(f => ({ ...f, role: e.target.value }))}>
+                <option value="hub_leader">Hub Leader</option>
+                <option value="registration_team">Registration Team</option>
+                <option value="decisions_team">Decisions Team</option>
+              </select>
+            </div>
+            {inviteForm.role === 'hub_leader' && (
+              <div className="form-group">
+                <label className="field-label">Hub</label>
+                <select className="field-select" value={inviteForm.hub_id} onChange={e => setInviteForm(f => ({ ...f, hub_id: e.target.value }))}>
+                  <option value="">Select hub…</option>
+                  {hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="form-group">
+              <label className="field-label">Name (optional)</label>
+              <input className="field-input" value={inviteForm.name} onChange={e => setInviteForm(f => ({ ...f, name: e.target.value }))} placeholder="Pre-fill their name" />
+            </div>
+            <div className="form-group">
+              <label className="field-label">Channel</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {['sms','email'].map(ch => (
+                  <button key={ch} onClick={() => setInviteForm(f => ({ ...f, channel: ch }))}
+                    style={{ flex: 1, height: 40, border: `1px solid ${inviteForm.channel === ch ? 'var(--accent)' : 'var(--border)'}`, background: inviteForm.channel === ch ? 'var(--accent)' : 'transparent', color: inviteForm.channel === ch ? '#fff' : 'var(--text-2)', borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
+                    {ch === 'sms' ? 'Phone' : 'Email'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {inviteForm.channel === 'sms'
+              ? <div className="form-group"><label className="field-label">Phone <span className="required">*</span></label><input className="field-input" style={{ fontFamily: 'var(--font-mono)' }} type="tel" value={inviteForm.phone} onChange={e => setInviteForm(f => ({ ...f, phone: e.target.value }))} placeholder="+2348012345678" /></div>
+              : <div className="form-group"><label className="field-label">Email <span className="required">*</span></label><input className="field-input" type="email" value={inviteForm.email} onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))} placeholder="name@example.com" /></div>
+            }
+            <button className="btn btn-primary" style={{ width: '100%', height: 44 }} onClick={sendInvite} disabled={inviteLoading}>
+              {inviteLoading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Create Invite'}
+            </button>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

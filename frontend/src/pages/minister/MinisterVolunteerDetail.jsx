@@ -39,7 +39,7 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
   return (
     <div className="page">
       <div className="page-header" style={{ paddingBottom:0 }}>
-        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--fmono)', padding:0, marginBottom:20 }}>
+        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20 }}>
           {backLabel}
         </button>
       </div>
@@ -72,12 +72,12 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:20 }}>
           {[
             { label:'Contacts',  value:data.total_contacts, color:'var(--accent)' },
-            { label:'Confirmed', value:data.confirmed,       color:'#4ade80' },
-            { label:'Msg Sent',  value:data.messages_sent,   color:'#60a5fa' },
-            { label:'Pending',   value:data.pending_calls,   color:'#fbbf24' },
+            { label:'Confirmed', value:data.confirmed,       color:'var(--green)' },
+            { label:'Msg Sent',  value:data.messages_sent,   color:'var(--text)' },
+            { label:'Pending',   value:data.pending_calls,   color:'var(--text)' },
           ].map(s => (
             <div key={s.label} style={{ background:'var(--sf)', border:'1px solid var(--bd)', borderRadius:8, padding:'12px 10px', textAlign:'center' }}>
-              <div style={{ fontSize:22, fontWeight:700, color:s.color, fontFamily:'var(--fmono)' }}>{s.value ?? 0}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:s.color, fontFamily:'var(--font-sans)' }}>{s.value ?? 0}</div>
               <div style={{ fontSize:10, color:'var(--tf)', marginTop:2 }}>{s.label}</div>
             </div>
           ))}
@@ -87,7 +87,7 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
         <div style={{ marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div style={{ fontWeight:600, fontSize:13 }}>Contact List</div>
           <select value={filter} onChange={e => setFilter(e.target.value)}
-            style={{ background:'var(--sf)', border:'1px solid var(--bd)', color:'var(--td)', borderRadius:6, padding:'5px 10px', fontSize:11, fontFamily:'var(--fmono)', cursor:'pointer' }}>
+            style={{ background:'var(--sf)', border:'1px solid var(--bd)', color:'var(--td)', borderRadius:6, padding:'5px 10px', fontSize:11, fontFamily:'var(--font-sans)', cursor:'pointer' }}>
             <option value="all">All statuses</option>
             {Object.entries(STATUS_LABELS).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
             <option value="none">No status</option>
@@ -103,7 +103,7 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{c.name}</div>
                     <div style={{ fontSize:11, color:'var(--td)' }}>{c.location}</div>
-                    {c.needs_transport && <div style={{ fontSize:10, color:'#fb923c', marginTop:2 }}>🚌 Needs transport</div>}
+                    {c.needs_transport && <div style={{ fontSize:10, color:'var(--amber)', marginTop:2 }}>🚌 Needs transport</div>}
                   </div>
                   <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
                     {c.current_status && (

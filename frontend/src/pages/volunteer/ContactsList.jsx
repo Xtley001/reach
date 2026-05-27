@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cached, invalidate, TTL } from '../../lib/cache';
 import { getCachedContacts, cacheContacts } from '../../lib/offline';
@@ -24,17 +25,20 @@ const STATUS_OPTIONS = [
 ];
 
 export default function ContactsList() {
-  const [filter, setFilter]   = useState('');
+  const location = useLocation();
+  const [filter, setFilter]     = useState('');
   const [contacts, setContacts] = useState([]);
-  const [search, setSearch]   = useState('');
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch]     = useState('');
+  const [loading, setLoading]   = useState(true);
+  const [loadError, setLoadError] = useState(false); // NEW-001: inline error state
   const [selected, setSelected] = useState(null);
-  const [detail, setDetail]   = useState(null);
-  const [detailLoading, setDL] = useState(false);
+  const [detail, setDetail]     = useState(null);
+  const [detailLoading, setDL]  = useState(false);
   const [templates, setTemplates] = useState([]);
 
   async function load(f = filter) {
     setLoading(true);
+    setLoadError(false); // NEW-001: reset inline error on retry
     if (!navigator.onLine) {
       try { setContacts((await getCachedContacts()) || []); } catch {}
       setLoading(false); return;
@@ -45,12 +49,22 @@ export default function ContactsList() {
       setContacts(list);
       if (!f) cacheContacts(list).catch(() => {});
     } catch (e) {
-      toast('Could not load contacts', 'error');
+      // NEW-001: set inline error state instead of floating toast that looked like a button
+      setLoadError(true);
     }
     setLoading(false);
   }
 
   useEffect(() => { load(filter); }, [filter]);
+
+  // FIX-009: If navigated here with a pre-selected contact ID (from home recent list), open it
+  useEffect(() => {
+    const preSelectId = location.state?.openContactId;
+    if (preSelectId && contacts.length > 0) {
+      const c = contacts.find(x => x.id === preSelectId);
+      if (c) openContact(c);
+    }
+  }, [contacts, location.state?.openContactId]);
 
   useEffect(() => {
     api.getActiveTemplates().then(d => setTemplates(d.templates || [])).catch(() => {});
@@ -145,6 +159,20 @@ export default function ContactsList() {
       <div className="page-body" style={{ padding: 0 }}>
         {loading ? (
           <PageSkeleton />
+        ) : loadError ? (
+          /* NEW-001: inline error — no more floating box that looks like a button */
+          <div style={{ padding: 'var(--space-8) var(--space-5)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-3)', textAlign: 'center' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-3)' }}>
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <div style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>Couldn't load contacts</div>
+            <button
+              onClick={() => load(filter)}
+              style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 500 }}
+            >
+              Retry
+            </button>
+          </div>
         ) : filtered.length === 0 ? (
           <EmptyState icon="👥" message={search ? 'No contacts match.' : 'No contacts yet. Add your first!'} />
         ) : (
@@ -192,7 +220,7 @@ export default function ContactsList() {
               </div>
               <div>
                 <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Msgs sent</div>
-                <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>{detail.message_sent_count}</div>
+                <div style={{ fontSize: 13, fontFamily: 'var(--font-sans)', fontWeight: 700 }}>{detail.message_sent_count}</div>
               </div>
             </div>
 

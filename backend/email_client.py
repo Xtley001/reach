@@ -51,10 +51,10 @@ def _otp_html(otp: str) -> str:
     body {{ margin: 0; padding: 0; background: linear-gradient(135deg, #F5F3F0 0%, #EDE9E4 100%); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Inter', sans-serif; line-height: 1.6; color: #1A1917; }}
     table {{ border-collapse: collapse; width: 100%; }}
     .container {{ width: 100%; max-width: 580px; margin: 0 auto; background-color: #FFFFFF; box-shadow: 0 4px 20px rgba(45, 90, 61, 0.08); border-radius: 16px; overflow: hidden; }}
-    .header {{ background: linear-gradient(135deg, #2D5A3D 0%, #1A3A24 100%); padding: 50px 40px; text-align: center; position: relative; overflow: hidden; }}
-    .header::before {{ content: ''; position: absolute; top: -50%; right: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); }}
-    .logo {{ font-size: 20px; font-weight: 700; color: #FFFFFF; letter-spacing: 3px; margin-bottom: 6px; position: relative; z-index: 1; }}
-    .tagline {{ font-size: 11px; color: #A8D5B8; text-transform: uppercase; letter-spacing: 1.5px; position: relative; z-index: 1; }}
+    .header {{ background: linear-gradient(135deg, #3D7550 0%, #2D5A3D 100%); padding: 50px 40px; text-align: center; position: relative; overflow: hidden; }}
+    .header::before {{ content: ''; position: absolute; top: -50%; right: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%); }}
+    .logo {{ font-size: 22px; font-weight: 800; color: #FFFFFF; letter-spacing: 4px; margin-bottom: 6px; position: relative; z-index: 1; }}
+    .tagline {{ font-size: 11px; color: rgba(255,255,255,0.72); text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 1; }}
     .content {{ padding: 48px 40px; }}
     .greeting {{ font-size: 18px; font-weight: 600; color: #1A1917; margin-bottom: 16px; }}
     .greeting-subtext {{ font-size: 14px; color: #5C5954; margin-bottom: 32px; line-height: 1.5; }}

@@ -10,6 +10,8 @@ const MinisterDemographics = lazy(() => import('./minister/MinisterDemographics'
 const MinisterCampaigns    = lazy(() => import('./minister/MinisterCampaigns'));
 const MinisterExports      = lazy(() => import('./minister/MinisterExports'));
 const MinisterProfile      = lazy(() => import('./minister/MinisterProfile'));
+// FIX-007: HubDetail was fully built but never routed
+const HubDetail            = lazy(() => import('./hub/HubDetail'));
 
 function PageFallback() {
   return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner large /></div>;
@@ -75,6 +77,8 @@ export default function MinisterLayout() {
             <Route path="campaigns"    element={<MinisterCampaigns />} />
             <Route path="exports"      element={<MinisterExports />} />
             <Route path="profile"      element={<MinisterProfile />} />
+            {/* FIX-007: Hub drilldown was built but never registered as a route */}
+            <Route path="hubs/:hubId"  element={<HubDetail />} />
           </Routes>
           </Suspense>
         </div>
@@ -86,7 +90,7 @@ export default function MinisterLayout() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 {n.icon.split('M').filter(Boolean).map((seg, i) => <path key={i} d={`M${seg}`} />)}
               </svg>
-              <span>{n.label.slice(0, 6)}</span>
+              <span>{n.label}</span>
             </NavLink>
           ))}
         </nav>

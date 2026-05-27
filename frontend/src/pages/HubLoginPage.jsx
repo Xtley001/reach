@@ -108,7 +108,7 @@ export default function HubLoginPage() {
             {step === 0 ? (
               <form onSubmit={e => { e.preventDefault(); sendOtp(); }} noValidate>
                 <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Hub Leader Sign In</h1>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-sans)', fontWeight: 300 }}>
                   Leadership access
                 </p>
 
