@@ -47,33 +47,42 @@ def _otp_html(otp: str) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>REACH Sign-In Code</title>
   <style>
-    body {{ margin: 0; padding: 0; background-color: #F7F5F2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Inter', sans-serif; line-height: 1.6; color: #1A1917; }}
-    table {{ border-collapse: collapse; }}
-    .container {{ width: 100%; max-width: 600px; margin: 0 auto; background-color: #FFFFFF; }}
-    .header {{ background: linear-gradient(135deg, #2D5A3D 0%, #1A3A24 100%); padding: 40px 32px; text-align: center; }}
-    .logo {{ font-size: 18px; font-weight: 700; color: #FFFFFF; letter-spacing: 2px; margin-bottom: 8px; }}
-    .tagline {{ font-size: 12px; color: #A8D5B8; text-transform: uppercase; letter-spacing: 1px; }}
-    .content {{ padding: 48px 32px; }}
-    .greeting {{ font-size: 16px; color: #1A1917; margin-bottom: 24px; }}
-    .code-section {{ text-align: center; margin: 32px 0; }}
-    .code-label {{ font-size: 12px; color: #9C9790; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }}
-    .code-box {{ background: linear-gradient(135deg, #F0EBE4 0%, #E8E3DB 100%); border: 2px solid #2D5A3D; border-radius: 12px; padding: 24px; margin: 16px 0; }}
-    .code-value {{ font-size: 48px; font-weight: 700; color: #2D5A3D; letter-spacing: 8px; font-family: 'Monaco', 'Courier New', monospace; word-spacing: 12px; }}
-    .info {{ background-color: #F7F5F2; border-left: 4px solid #2D5A3D; padding: 16px; border-radius: 4px; margin: 24px 0; }}
-    .info-text {{ font-size: 13px; color: #5C5954; margin: 0; }}
-    .footer {{ background-color: #FAFAF8; border-top: 1px solid #E8E3DB; padding: 24px 32px; text-align: center; }}
-    .footer-text {{ font-size: 11px; color: #9C9790; margin: 0; }}
-    .security-note {{ font-size: 12px; color: #7C7870; margin-top: 16px; font-style: italic; }}
-    a {{ color: #2D5A3D; text-decoration: none; }}
-    a:hover {{ text-decoration: underline; }}
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ margin: 0; padding: 0; background: linear-gradient(135deg, #F5F3F0 0%, #EDE9E4 100%); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Inter', sans-serif; line-height: 1.6; color: #1A1917; }}
+    table {{ border-collapse: collapse; width: 100%; }}
+    .container {{ width: 100%; max-width: 580px; margin: 0 auto; background-color: #FFFFFF; box-shadow: 0 4px 20px rgba(45, 90, 61, 0.08); border-radius: 16px; overflow: hidden; }}
+    .header {{ background: linear-gradient(135deg, #2D5A3D 0%, #1A3A24 100%); padding: 50px 40px; text-align: center; position: relative; overflow: hidden; }}
+    .header::before {{ content: ''; position: absolute; top: -50%; right: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); }}
+    .logo {{ font-size: 20px; font-weight: 700; color: #FFFFFF; letter-spacing: 3px; margin-bottom: 6px; position: relative; z-index: 1; }}
+    .tagline {{ font-size: 11px; color: #A8D5B8; text-transform: uppercase; letter-spacing: 1.5px; position: relative; z-index: 1; }}
+    .content {{ padding: 48px 40px; }}
+    .greeting {{ font-size: 18px; font-weight: 600; color: #1A1917; margin-bottom: 16px; }}
+    .greeting-subtext {{ font-size: 14px; color: #5C5954; margin-bottom: 32px; line-height: 1.5; }}
+    .divider {{ height: 1px; background: linear-gradient(90deg, transparent, #DDD9D3, transparent); margin: 24px 0; }}
+    .code-section {{ text-align: center; margin: 40px 0; }}
+    .code-label {{ font-size: 11px; color: #9C9790; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 18px; font-weight: 600; }}
+    .code-box {{ background: linear-gradient(135deg, #F8F6F3 0%, #F0EBE4 100%); border: 2px solid #2D5A3D; border-radius: 14px; padding: 32px 24px; margin: 16px 0; box-shadow: inset 0 2px 4px rgba(45, 90, 61, 0.08); }}
+    .code-value {{ font-size: 56px; font-weight: 800; color: #2D5A3D; letter-spacing: 12px; font-family: 'Monaco', 'Courier New', monospace; word-spacing: 16px; line-height: 1; }}
+    .info-box {{ background: linear-gradient(135deg, #F0F9F4 0%, #E8F2EC 100%); border: 1.5px solid #2D5A3D; border-radius: 12px; padding: 24px; margin: 32px 0; }}
+    .info-box-icon {{ font-size: 24px; margin-bottom: 8px; }}
+    .info-box-title {{ font-size: 14px; font-weight: 600; color: #2D5A3D; margin-bottom: 8px; }}
+    .info-box-text {{ font-size: 13px; color: #5C5954; margin: 0; line-height: 1.5; }}
+    .footer {{ background: linear-gradient(135deg, #FAFAF8 0%, #F5F3F0 100%); border-top: 1px solid #E8E3DB; padding: 32px 40px; text-align: center; }}
+    .footer-text {{ font-size: 11px; color: #9C9790; margin: 8px 0; }}
+    .footer-divider {{ height: 1px; background: #E8E3DB; margin: 16px 0; }}
+    .security-note {{ font-size: 11px; color: #B0ADA6; margin-top: 12px; font-style: italic; }}
+    a {{ color: #2D5A3D; text-decoration: none; transition: color 0.2s; }}
+    a:hover {{ text-decoration: underline; color: #1A3A24; }}
+    .muted-text {{ color: #9C9790; font-size: 12px; }}
+    .spacer {{ height: 24px; }}
   </style>
 </head>
 <body>
   <table width="100%" cellpadding="0" cellspacing="0">
     <tr>
-      <td align="center">
+      <td align="center" style="padding: 32px 8px;">
         <table class="container" width="100%" cellpadding="0" cellspacing="0">
-          <!-- Header -->
+          <!-- Header with Gradient Background -->
           <tr>
             <td class="header">
               <div class="logo">REACH</div>
@@ -84,44 +93,57 @@ def _otp_html(otp: str) -> str:
           <!-- Main Content -->
           <tr>
             <td class="content">
-              <p class="greeting">Hello,</p>
+              <h1 class="greeting" style="font-size: 20px; margin-bottom: 12px;">Welcome Back</h1>
               
-              <p style="font-size: 14px; color: #5C5954; margin-bottom: 24px;">
-                Your sign-in request was received. Use the code below to access your REACH account:
+              <p class="greeting-subtext">
+                Your sign-in code is ready. Enter the 6-digit code below to access your REACH account:
               </p>
 
-              <!-- Code Section -->
+              <div class="divider"></div>
+
+              <!-- Code Section with Enhanced Styling -->
               <div class="code-section">
-                <div class="code-label">Your Sign-In Code</div>
+                <div class="code-label">🔐 Your Verification Code</div>
                 <div class="code-box">
                   <div class="code-value">{otp}</div>
                 </div>
+                <p style="font-size: 12px; color: #9C9790; margin: 12px 0 0 0;">Copy and paste into the login screen</p>
               </div>
 
-              <!-- Information Box -->
-              <div class="info">
-                <p class="info-text">
-                  <strong>⏱️ Code expires in 10 minutes</strong><br>
-                  This code is only valid for a single sign-in attempt.
+              <div class="divider"></div>
+
+              <!-- Information Box with Icon -->
+              <div class="info-box">
+                <div class="info-box-icon">⏱️</div>
+                <div class="info-box-title">Code Expires in 10 Minutes</div>
+                <div class="info-box-text">
+                  This code is valid for a single sign-in attempt only. It will automatically expire after 10 minutes.
+                </div>
+              </div>
+
+              <!-- Security Notice -->
+              <div style="background-color: #FEF9F6; border: 1px solid #F0EBE4; border-radius: 10px; padding: 18px; margin: 24px 0;">
+                <p style="font-size: 13px; color: #5C5954; margin: 0;">
+                  <strong>🔒 Didn't request this code?</strong><br>
+                  If you didn't initiate this sign-in request, you can safely ignore this email. Your account remains secure. We never share your personal information with third parties.
                 </p>
               </div>
-
-              <p style="font-size: 13px; color: #5C5954; margin-top: 24px;">
-                <strong>Didn't request this code?</strong><br>
-                If you didn't initiate a sign-in request, you can safely ignore this email. Your account remains secure.
-              </p>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
             <td class="footer">
-              <p class="footer-text">
-                © 2026 REACH · Ministry Outreach Platform<br>
-                <a href="https://reach-livid.vercel.app">Visit our website</a>
+              <p class="footer-text" style="margin-bottom: 12px;">
+                <strong>REACH</strong> — Ministry Outreach Platform
               </p>
+              <p class="footer-text">
+                <a href="https://reach-livid.vercel.app">Visit our website</a> • <a href="https://reach-livid.vercel.app">Need help?</a>
+              </p>
+              <div class="footer-divider"></div>
               <p class="security-note">
-                This is an automated message. Please do not reply to this email.
+                This is an automated security message. Please do not reply to this email.<br>
+                © 2026 REACH. All rights reserved.
               </p>
             </td>
           </tr>

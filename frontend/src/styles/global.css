@@ -709,7 +709,9 @@ fieldset {
   display: flex !important;
   gap: var(--space-2);
   justify-content: center;
-  margin: 16px 0 20px 0 !important;
+  margin: 16px auto 20px auto !important;
+  width: 100%;
+  max-width: 380px;
 }
 .otp-cell {
   /* HIGH-03: fluid width — fits 6 cells + 5×8px gaps on any viewport ≥ 280px */
