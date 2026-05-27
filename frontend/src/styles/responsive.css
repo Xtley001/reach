@@ -33,7 +33,7 @@
 }
 
 /* Ensure OTP cells fit on narrow screens */
-@media (max-width: 360px) {
-  .otp-cell { width: 38px; height: 46px; font-size: 19px; }
+@media (max-width: 480px) {
+  .otp-cell { width: 40px; height: 52px; font-size: 20px; line-height: 52px; }
   .otp-row { gap: 6px; }
 }

@@ -702,34 +702,39 @@ button { font-family: var(--font-sans); cursor: pointer; }
 fieldset {
   border: none;
   padding: 0;
-  margin: 0;
-}
+  margin: 0;  display: block;
+  width: 100%;
+  box-sizing: border-box;}
 
 .otp-row {
   display: flex !important;
-  gap: var(--space-2);
-  justify-content: center;
-  margin: 16px auto 20px auto !important;
-  width: 100%;
-  max-width: 380px;
+  gap: 8px !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 20px auto !important;
+  width: 100% !important;
+  padding: 0 !important;
+  flex-wrap: nowrap !important;
 }
 .otp-cell {
-  /* HIGH-03: fluid width — fits 6 cells + 5×8px gaps on any viewport ≥ 280px */
-  width: clamp(40px, calc((100% - 40px) / 6), 56px) !important;
+  flex: 1 1 auto !important;
+  min-width: 40px !important;
+  width: 50px !important;
   height: 60px !important;
   padding: 0 !important;
   background: var(--bg-3);
-  border: 1.5px solid var(--border-2);  /* upgraded from --border for visibility */
+  border: 2px solid var(--border-2);
   border-radius: var(--radius);
   font-family: var(--font-mono);
-  font-size: 28px;
-  font-weight: 500;
+  font-size: 24px;
+  font-weight: 600;
   color: var(--text);
   text-align: center;
   outline: none;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   caret-color: var(--accent);
-  line-height: 1;
+  line-height: 60px;
+  box-sizing: border-box;
 }
 .otp-cell:focus {
   border-color: var(--accent);
