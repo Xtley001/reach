@@ -42,33 +42,92 @@ def _headers() -> dict:
 def _otp_html(otp: str) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F7F5F2;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F5F2;padding:48px 0">
-    <tr><td align="center">
-      <table width="440" cellpadding="0" cellspacing="0" style="max-width:440px;width:100%;padding:0 24px">
-        <tr><td style="padding-bottom:32px">
-          <span style="font-size:13px;font-weight:600;color:#1A1917;letter-spacing:0.25em;text-transform:uppercase">REACH</span>
-        </td></tr>
-        <tr><td style="padding-bottom:8px">
-          <span style="font-size:11px;color:#9C9790;letter-spacing:0.12em;text-transform:uppercase">Your sign-in code</span>
-        </td></tr>
-        <tr><td style="padding-bottom:32px">
-          <div style="display:inline-block;background:#EFEDE9;border-radius:8px;padding:20px 32px">
-            <span style="font-size:48px;font-weight:700;color:#1A1917;letter-spacing:12px;font-variant-numeric:tabular-nums">{otp}</span>
-          </div>
-        </td></tr>
-        <tr><td style="padding-bottom:8px">
-          <span style="font-size:13px;color:#5C5954;line-height:1.7">
-            This code expires in <strong>10 minutes</strong>.<br>
-            If you did not request this, you can safely ignore this email.
-          </span>
-        </td></tr>
-        <tr><td style="padding-top:32px;border-top:1px solid #D8D4CE">
-          <span style="font-size:11px;color:#9C9790">REACH · Ministry Outreach Platform</span>
-        </td></tr>
-      </table>
-    </td></tr>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REACH Sign-In Code</title>
+  <style>
+    body {{ margin: 0; padding: 0; background-color: #F7F5F2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Inter', sans-serif; line-height: 1.6; color: #1A1917; }}
+    table {{ border-collapse: collapse; }}
+    .container {{ width: 100%; max-width: 600px; margin: 0 auto; background-color: #FFFFFF; }}
+    .header {{ background: linear-gradient(135deg, #2D5A3D 0%, #1A3A24 100%); padding: 40px 32px; text-align: center; }}
+    .logo {{ font-size: 18px; font-weight: 700; color: #FFFFFF; letter-spacing: 2px; margin-bottom: 8px; }}
+    .tagline {{ font-size: 12px; color: #A8D5B8; text-transform: uppercase; letter-spacing: 1px; }}
+    .content {{ padding: 48px 32px; }}
+    .greeting {{ font-size: 16px; color: #1A1917; margin-bottom: 24px; }}
+    .code-section {{ text-align: center; margin: 32px 0; }}
+    .code-label {{ font-size: 12px; color: #9C9790; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }}
+    .code-box {{ background: linear-gradient(135deg, #F0EBE4 0%, #E8E3DB 100%); border: 2px solid #2D5A3D; border-radius: 12px; padding: 24px; margin: 16px 0; }}
+    .code-value {{ font-size: 48px; font-weight: 700; color: #2D5A3D; letter-spacing: 8px; font-family: 'Monaco', 'Courier New', monospace; word-spacing: 12px; }}
+    .info {{ background-color: #F7F5F2; border-left: 4px solid #2D5A3D; padding: 16px; border-radius: 4px; margin: 24px 0; }}
+    .info-text {{ font-size: 13px; color: #5C5954; margin: 0; }}
+    .footer {{ background-color: #FAFAF8; border-top: 1px solid #E8E3DB; padding: 24px 32px; text-align: center; }}
+    .footer-text {{ font-size: 11px; color: #9C9790; margin: 0; }}
+    .security-note {{ font-size: 12px; color: #7C7870; margin-top: 16px; font-style: italic; }}
+    a {{ color: #2D5A3D; text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+  </style>
+</head>
+<body>
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table class="container" width="100%" cellpadding="0" cellspacing="0">
+          <!-- Header -->
+          <tr>
+            <td class="header">
+              <div class="logo">REACH</div>
+              <div class="tagline">Ministry Outreach Platform</div>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td class="content">
+              <p class="greeting">Hello,</p>
+              
+              <p style="font-size: 14px; color: #5C5954; margin-bottom: 24px;">
+                Your sign-in request was received. Use the code below to access your REACH account:
+              </p>
+
+              <!-- Code Section -->
+              <div class="code-section">
+                <div class="code-label">Your Sign-In Code</div>
+                <div class="code-box">
+                  <div class="code-value">{otp}</div>
+                </div>
+              </div>
+
+              <!-- Information Box -->
+              <div class="info">
+                <p class="info-text">
+                  <strong>⏱️ Code expires in 10 minutes</strong><br>
+                  This code is only valid for a single sign-in attempt.
+                </p>
+              </div>
+
+              <p style="font-size: 13px; color: #5C5954; margin-top: 24px;">
+                <strong>Didn't request this code?</strong><br>
+                If you didn't initiate a sign-in request, you can safely ignore this email. Your account remains secure.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td class="footer">
+              <p class="footer-text">
+                © 2026 REACH · Ministry Outreach Platform<br>
+                <a href="https://reach-livid.vercel.app">Visit our website</a>
+              </p>
+              <p class="security-note">
+                This is an automated message. Please do not reply to this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
   </table>
 </body>
 </html>"""

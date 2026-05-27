@@ -713,11 +713,9 @@ fieldset {
 }
 .otp-cell {
   /* HIGH-03: fluid width — fits 6 cells + 5×8px gaps on any viewport ≥ 280px */
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
   width: clamp(40px, calc((100% - 40px) / 6), 56px) !important;
   height: 60px !important;
+  padding: 0 !important;
   background: var(--bg-3);
   border: 1.5px solid var(--border-2);  /* upgraded from --border for visibility */
   border-radius: var(--radius);
@@ -729,6 +727,7 @@ fieldset {
   outline: none;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   caret-color: var(--accent);
+  line-height: 1;
 }
 .otp-cell:focus {
   border-color: var(--accent);
