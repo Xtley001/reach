@@ -70,7 +70,7 @@ export function OTPInput({ value = '', onChange, error = false }) {
 
   return (
     /* Fieldset groups all cells semantically for screen readers (HIGH-02) */
-    <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+    <fieldset style={{ border: 'none', padding: 0, margin: 0, display: 'block', width: '100%' }}>
       <legend style={{
         position: 'absolute', width: 1, height: 1,
         overflow: 'hidden', clip: 'rect(0,0,0,0)',
