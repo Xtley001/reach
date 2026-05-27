@@ -51,9 +51,15 @@ export default function OtpStep({
   }
 
   /* Handle Enter key in the form (MED-08) */
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (!loading && otp.length === 6 && !expired) onSubmit();
+    if (!loading && otp.length === 6 && !expired) {
+      try {
+        await onSubmit();
+      } catch (err) {
+        setOtp(''); // clear for retry on error
+      }
+    }
   }
 
   return (

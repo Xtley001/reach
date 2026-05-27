@@ -4,7 +4,7 @@ export function useTheme() {
   const [dark, setDarkState] = useState(() => {
     const saved = localStorage.getItem('reach-theme');
     if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return false; // always default to light unless user has explicitly set dark
   });
 
   useEffect(() => {

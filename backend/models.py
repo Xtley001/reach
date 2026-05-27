@@ -126,6 +126,8 @@ class Hub(Base):
     organisation_id = Column(UUID(as_uuid=False), ForeignKey("organisations.id"), nullable=False)
     name            = Column(String(200), nullable=False)
     zone            = Column(String(100), nullable=True)
+    location        = Column(Text, nullable=True)
+    description     = Column(Text, nullable=True)
     created_at      = Column(DateTime(timezone=True), server_default=func.now())
 
     campaign = relationship("Campaign", back_populates="hubs")

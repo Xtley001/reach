@@ -234,3 +234,10 @@ class CampaignCreate(BaseModel):
     target_count:   Optional[int] = None
     programme_date: Optional[datetime] = None
     venue:          Optional[str] = None
+
+
+class HubCreate(BaseModel):
+    name:        str
+    zone:        Optional[str] = None
+    location:    Optional[str] = None
+    description: Optional[str] = None

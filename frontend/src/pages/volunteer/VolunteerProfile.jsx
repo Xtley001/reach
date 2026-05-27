@@ -11,7 +11,7 @@ import AvatarCropper from '../../components/AvatarCropper';
 
 export default function VolunteerProfile() {
   const { user, refreshUser, logout } = useAuth();
-  const [form, setForm]           = useState({ name: user?.name || '' });
+  const [form, setForm]           = useState({ name: (user?.name && user.name.toLowerCase() !== 'admin') ? user.name : '' });
   const [saving, setSaving]       = useState(false);
   // FIX-005: Avatar upload state
   const [cropSrc, setCropSrc]     = useState(null);

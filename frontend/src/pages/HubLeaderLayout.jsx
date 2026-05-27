@@ -50,11 +50,13 @@ export default function HubLeaderLayout() {
         <div className="sidebar-body">
           {NAV.map(n => (
             <NavLink key={n.to} to={`/hub/${n.to}`} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
-              {n.label}
+              {n.icon}
+              <span>{n.label}</span>
             </NavLink>
           ))}
           <NavLink to="/hub/profile" className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
-            Profile
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Profile</span>
           </NavLink>
         </div>
         <div className="sidebar-footer">
@@ -69,7 +71,7 @@ export default function HubLeaderLayout() {
           <ThemeToggle />
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard"  element={<HubDashboard />} />

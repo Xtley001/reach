@@ -9,6 +9,8 @@ export default function MinisterCampaigns() {
   const [showNew, setShowNew]     = useState(false);
   const [form, setForm]           = useState({ name: '', target_count: '', programme_date: '', venue: '' });
   const [saving, setSaving]       = useState(false);
+  const [editing, setEditing]     = useState(null);
+  const [editForm, setEditForm]   = useState({});
 
   useEffect(() => {
     api.listCampaigns().then(d => { setCampaigns(d.campaigns || []); setLoading(false); }).catch(() => setLoading(false));
@@ -25,6 +27,36 @@ export default function MinisterCampaigns() {
       api.listCampaigns().then(d => setCampaigns(d.campaigns || []));
     } catch (e) { toast(e.message || 'Failed', 'error'); }
     setSaving(false);
+  }
+
+  function startEdit(c) {
+    setEditing(c.id);
+    setEditForm({ name: c.name, target_count: c.target_count || '', programme_date: c.programme_date ? c.programme_date.slice(0, 16) : '', venue: c.venue || '' });
+  }
+
+  async function saveEdit() {
+    setSaving(true);
+    try {
+      await api.updateCampaign(editing, {
+        name: editForm.name.trim(),
+        target_count: parseInt(editForm.target_count) || null,
+        programme_date: editForm.programme_date || null,
+        venue: editForm.venue || null,
+      });
+      toast('Campaign updated', 'success');
+      setEditing(null);
+      api.listCampaigns().then(d => setCampaigns(d.campaigns || []));
+    } catch (e) { toast(e.message || 'Failed', 'error'); }
+    setSaving(false);
+  }
+
+  async function archiveCampaign(id) {
+    if (!window.confirm('Archive this campaign?')) return;
+    try {
+      await api.archiveCampaign(id);
+      toast('Campaign archived', 'success');
+      api.listCampaigns().then(d => setCampaigns(d.campaigns || []));
+    } catch (e) { toast(e.message || 'Failed to archive', 'error'); }
   }
 
   return (
@@ -57,14 +89,45 @@ export default function MinisterCampaigns() {
         )}
         {loading ? <PageSkeleton /> : campaigns.length === 0 ? <EmptyState icon="📋" message="No campaigns yet." /> : campaigns.map(c => (
           <div key={c.id} className="card">
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            {editing === c.id ? (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</div>
-                {c.venue && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.venue}</div>}
-                {c.programme_date && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{new Date(c.programme_date).toLocaleDateString('en-NG')}</div>}
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Edit Campaign</div>
+                {[['name','Campaign Name',true],['target_count','Target Count'],['venue','Venue']].map(([k,l,req]) => (
+                  <div key={k} className="form-group">
+                    <label className="field-label">{l}{req && <span className="required">*</span>}</label>
+                    <input className="field-input" value={editForm[k] || ''} onChange={e => setEditForm(f => ({ ...f, [k]: e.target.value }))} />
+                  </div>
+                ))}
+                <div className="form-group">
+                  <label className="field-label">Programme Date</label>
+                  <input className="field-input" type="datetime-local" value={editForm.programme_date || ''} onChange={e => setEditForm(f => ({ ...f, programme_date: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
+                  <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>
+                    {saving ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Save'}
+                  </button>
+                </div>
               </div>
-              <span className={`badge ${c.status === 'active' ? 'badge-green' : ''}`}>{c.status}</span>
-            </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{c.name}</div>
+                    {c.venue && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{c.venue}</div>}
+                    {c.programme_date && <div style={{ fontSize: 11, color: 'var(--text-3)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{new Date(c.programme_date).toLocaleDateString('en-NG')}</div>}
+                    {c.target_count && <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>Target: {c.target_count.toLocaleString()}</div>}
+                  </div>
+                  <span className={`badge ${c.status === 'active' ? 'badge-green' : ''}`}>{c.status}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)}>Edit</button>
+                  {c.status === 'active' && (
+                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => archiveCampaign(c.id)}>Archive</button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

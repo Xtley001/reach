@@ -12,6 +12,7 @@ const MinisterExports      = lazy(() => import('./minister/MinisterExports'));
 const MinisterProfile      = lazy(() => import('./minister/MinisterProfile'));
 // FIX-007: HubDetail was fully built but never routed
 const HubDetail            = lazy(() => import('./minister/HubDetail'));
+const MinisterHubs         = lazy(() => import('./minister/MinisterHubs'));
 
 function PageFallback() {
   return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner large /></div>;
@@ -23,6 +24,7 @@ const NAV = [
   { to: 'demographics', label: 'Demographics', icon: 'M18 20V10M12 20V4M6 20v-6' },
   { to: 'campaigns',    label: 'Campaigns',    icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
   { to: 'exports',      label: 'Exports',      icon: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3' },
+  { to: 'hubs',         label: 'Hubs',         icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10' },
   { to: 'profile',      label: 'Profile',      icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2' },
 ];
 
@@ -67,7 +69,7 @@ export default function MinisterLayout() {
           <ThemeToggle />
         </div>
 
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -77,6 +79,7 @@ export default function MinisterLayout() {
             <Route path="campaigns"    element={<MinisterCampaigns />} />
             <Route path="exports"      element={<MinisterExports />} />
             <Route path="profile"      element={<MinisterProfile />} />
+            <Route path="hubs"         element={<MinisterHubs />} />
             {/* FIX-007: Hub drilldown was built but never registered as a route */}
             <Route path="hubs/:hubId"  element={<HubDetail />} />
           </Routes>

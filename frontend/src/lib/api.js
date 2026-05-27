@@ -142,9 +142,14 @@ export const api = {
     URL.revokeObjectURL(url);
   },
   getMinisterHubs()           { return request('GET', '/minister/hubs'); },
+  createHub(b)                { return request('POST', '/minister/hubs', b); },
+  updateHub(id, b)            { return request('PATCH', `/minister/hubs/${id}`, b); },
 
   // Templates
   getActiveTemplates() { return request('GET', '/templates/active'); },
+  createTemplate(b)        { return request('POST', '/templates', b); },
+  updateTemplate(id, b)    { return request('PATCH', `/templates/${id}`, b); },
+  deleteTemplate(id)       { return request('DELETE', `/templates/${id}`); },
 
   // Minister
   getMinisterVolunteers()  { return request('GET', '/minister/volunteers'); },
@@ -152,6 +157,8 @@ export const api = {
   listCampaigns()          { return request('GET', '/campaigns'); },
   createCampaign(b)        { return request('POST', '/campaigns', b); },
   archiveCampaign(id)      { return request('POST', `/campaigns/${id}/archive`); },
+  updateCampaign(id, b)    { return request('PATCH', `/campaigns/${id}`, b); },
+  reactivateCampaign(id)   { return request('POST', `/campaigns/${id}/reactivate`); },
 
   // Attendance
   attendanceCheckIn(contactId)   { return request('POST', '/attendance/check-in', { contact_id: contactId }); },

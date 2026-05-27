@@ -85,18 +85,26 @@ function AppRoutes() {
   );
 
   if (user.role === 'minister') return (
-    <Routes>
-      <Route path="/admin-panel/*" element={<MinisterLayout />} />
-      <Route path="/admin"         element={<AdminLoginPage />} />
-      <Route path="*"              element={<Navigate to="/admin-panel/dashboard" replace />} />
-    </Routes>
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/admin-panel/*" element={<MinisterLayout />} />
+        <Route path="/admin"         element={<AdminLoginPage />} />
+        <Route path="/attend"        element={<AttendLayout />} />
+        <Route path="/decisions"     element={<DecisionsLayout />} />
+        <Route path="*"              element={<Navigate to="/admin-panel/dashboard" replace />} />
+      </Routes>
+    </Suspense>
   );
 
   if (user.role === 'hub_leader') return (
-    <Routes>
-      <Route path="/hub/*" element={<HubLeaderLayout />} />
-      <Route path="*"      element={<Navigate to="/hub/dashboard" replace />} />
-    </Routes>
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/hub/*"     element={<HubLeaderLayout />} />
+        <Route path="/attend"    element={<AttendLayout />} />
+        <Route path="/decisions" element={<DecisionsLayout />} />
+        <Route path="*"          element={<Navigate to="/hub/dashboard" replace />} />
+      </Routes>
+    </Suspense>
   );
 
   if (user.role === 'registration_team') return (

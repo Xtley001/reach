@@ -70,6 +70,8 @@ export default function HubDashboard() {
             { label: 'Approve Volunteers', path: '/hub/volunteers' },
             { label: 'View Transport', path: '/hub/logistics' },
             { label: 'Templates', path: '/hub/templates' },
+            { label: 'Take Attendance', path: '/attend' },
+            { label: 'Log Decisions', path: '/decisions' },
           ].map(a => (
             <button key={a.label} className="btn btn-outline btn-sm" onClick={() => navigate(a.path)}>{a.label}</button>
           ))}

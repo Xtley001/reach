@@ -3,39 +3,110 @@
 /* ── Light Mode ────────────────────────────────────────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --bg:         #F6F5F2;
-  --bg-2:       #EEECE8;
-  --bg-3:       #E5E2DC;
-  --bg-glass:   rgba(246, 245, 242, 0.80);
-  --border:     #DDD9D3;
-  --border-2:   #CCCAC4;
+  /* ── Backgrounds ── */
+  --bg:         #FFFFFF;
+  --bg-2:       #F5F5F7;
+  --bg-3:       #E8E8ED;
+  --bg-glass:   rgba(255,255,255,0.82);
 
-  --text:       #1C1A17;
-  --text-2:     #5A5651;
-  --text-3:     #9A958E;
+  /* ── Borders ── */
+  --border:     #D2D2D7;
+  --border-2:   #B8B8BF;
 
-  /* Primary accent — deep sage green */
-  --accent:     #2D5A3D;
+  /* ── Text ── */
+  --text:       #1D1D1F;
+  --text-2:     #6E6E73;
+  --text-3:     #86868B;
+
+  /* ── Accent — charcoal CTA (Apple-style dark button on white) ── */
+  --accent:     #1D1D1F;
   --accent-fg:  #FFFFFF;
-  --accent-2:   #3D7A52;
+  --accent-2:   #3A3A3F;
 
-  /* Secondary — warm terracotta (replaces gold for badges/indicators) */
-  --highlight:  #B85C38;
-  --highlight-2:#9A4A2A;
+  /* ── Semantic colours ── */
+  --green:      #25A244;
+  --red:        #D92B2B;
+  --amber:      #C07A10;
+  --blue:       #0066CC;
 
-  /* Legacy gold alias — kept so existing components don't break */
-  --gold:       #B85C38;
-  --gold-dim:   #9A4A2A;
-  --gold-glow:  rgba(184, 92, 56, 0.12);
+  /* ── Badge fills ── */
+  --badge-green-bg:   #D4EDDA;
+  --badge-green-text: #1A6B3A;
+  --badge-red-bg:     #FAD7D7;
+  --badge-red-text:   #A82020;
+  --badge-amber-bg:   #FEF3CD;
+  --badge-amber-text: #8A5700;
+  --badge-blue-bg:    #DAEAFD;
+  --badge-blue-text:  #004A99;
 
-  --green:      #2A6049;
-  --red:        #B03A2E;
-  --amber:      #A8701C;
-  --blue:       #2457C5;
+  /* ── Shadows ── */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.04);
+  --shadow:     0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 40px rgba(0,0,0,0.12);
 
-  --shadow-sm:  0 1px 2px rgba(0,0,0,0.05);
-  --shadow:     0 2px 8px rgba(0,0,0,0.08);
-  --shadow-md:  0 4px 20px rgba(0,0,0,0.10);
+  /* ── Radius ── */
+  --radius-sm:  6px;
+  --radius:     10px;
+  --radius-md:  14px;
+  --radius-lg:  20px;
+  --radius-xl:  28px;
+  --radius-pill: 9999px;
+  --radius-full: 9999px;
+
+  /* Legacy aliases — keep so existing components don't break */
+  --bg-sf: var(--bg-2); --sf: var(--bg-2); --sf2: var(--bg-3);
+  --bd: var(--border); --bdb: var(--border-2);
+  --tx: var(--text); --td: var(--text-2); --tf: var(--text-3);
+  --ac: var(--accent); --acd: var(--border-2);
+  --grn: var(--green); --yel: var(--amber);
+  --gold: var(--amber); --gold-dim: #9A5E0A; --gold-glow: rgba(192,122,16,0.12);
+  --highlight: var(--amber); --highlight-2: #9A5E0A;
+}
+
+/* ── Dark Mode ─────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  /* ── Backgrounds ── */
+  --bg:         #111111;
+  --bg-2:       #1C1C1E;
+  --bg-3:       #2C2C2E;
+  --bg-glass:   rgba(17,17,17,0.88);
+
+  /* ── Borders ── */
+  --border:     #38383A;
+  --border-2:   #48484A;
+
+  /* ── Text ── */
+  --text:       #F5F5F7;
+  --text-2:     #AEAEB2;
+  --text-3:     #636366;
+
+  /* ── Accent — white CTA on dark ── */
+  --accent:     #F5F5F7;
+  --accent-fg:  #111111;
+  --accent-2:   #DCDCE0;
+
+  /* ── Semantic ── */
+  --green:      #30D158;
+  --red:        #FF453A;
+  --amber:      #FFD60A;
+  --blue:       #0A84FF;
+
+  /* ── Badge fills ── */
+  --badge-green-bg:   rgba(48,209,88,0.14);
+  --badge-green-text: #30D158;
+  --badge-red-bg:     rgba(255,69,58,0.14);
+  --badge-red-text:   #FF453A;
+  --badge-amber-bg:   rgba(255,214,10,0.14);
+  --badge-amber-text: #FFD60A;
+  --badge-blue-bg:    rgba(10,132,255,0.14);
+  --badge-blue-text:  #0A84FF;
+
+  /* ── Shadows ── */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.25);
+  --shadow:     0 2px 8px rgba(0,0,0,0.40);
+  --shadow-md:  0 4px 24px rgba(0,0,0,0.50);
+  --shadow-lg:  0 8px 40px rgba(0,0,0,0.60);
 
   /* Legacy aliases */
   --bg-sf: var(--bg-2); --sf: var(--bg-2); --sf2: var(--bg-3);
@@ -43,55 +114,15 @@
   --tx: var(--text); --td: var(--text-2); --tf: var(--text-3);
   --ac: var(--accent); --acd: var(--border-2);
   --grn: var(--green); --yel: var(--amber);
-}
-
-/* ── Dark Mode ─────────────────────────────────────────────────────────────── */
-:root[data-theme="dark"] {
-  --bg:         #131210;
-  --bg-2:       #1C1A17;
-  --bg-3:       #242220;
-  --bg-glass:   rgba(28, 26, 23, 0.85);
-  --border:     #2A2825;
-  --border-2:   #35322E;
-
-  --text:       #F0EDE8;
-  --text-2:     #B0ADA6;
-  --text-3:     #8A8780;   /* raised from #6E6B64 — now ≈4.6:1 on #131210 (WCAG AA) */
-
-  /* Lighter sage in dark mode */
-  --accent:     #4A9463;
-  --accent-fg:  #F0FFF4;   /* was #0C1A10 (near-black on green) — now soft mint white (LOW-11) */
-  --accent-2:   #5AAD75;
-
-  --highlight:  #D4714A;
-  --highlight-2:#E8845E;
-
-  /* Legacy gold alias */
-  --gold:       #D4714A;
-  --gold-dim:   #B85C38;
-  --gold-glow:  rgba(212, 113, 74, 0.12);
-
-  --green:      #3DCC7A;
-  --red:        #E06B5A;
-  --amber:      #E0A040;
-  --blue:       #5B8FE8;
-
-  --shadow-sm:  0 1px 2px rgba(0,0,0,0.20);
-  --shadow:     0 2px 8px rgba(0,0,0,0.30);
-  --shadow-md:  0 4px 20px rgba(0,0,0,0.40);
-
-  --bg-sf: var(--bg-2); --sf: var(--bg-2); --sf2: var(--bg-3);
-  --bd: var(--border); --bdb: var(--border-2);
-  --tx: var(--text); --td: var(--text-2); --tf: var(--text-3);
-  --ac: var(--accent); --acd: var(--border-2);
-  --grn: var(--green); --yel: var(--amber);
+  --gold: var(--amber); --gold-dim: #C8A800; --gold-glow: rgba(255,214,10,0.12);
+  --highlight: var(--amber); --highlight-2: #C8A800;
 }
 
 /* ── Typography ────────────────────────────────────────────────────────────── */
 :root {
-  --font-sans:    'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: var(--font-sans); /* Instrument Serif removed — use DM Sans everywhere */
-  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans:    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Clash Display', 'Geist', sans-serif;
+  --font-mono:    'Geist Mono', 'JetBrains Mono', monospace;
 
   /* Legacy aliases */
   --font-body: var(--font-sans);

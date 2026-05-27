@@ -31,7 +31,7 @@ from ..models import (
     Logistics, TransportStatus, Campaign, CampaignStatus, RefreshToken,
     FollowUpQueue, FollowUpQueueType, Hub
 )
-from ..schemas import ApprovalAction, ContactReassign, LogisticsUpdate, CampaignCreate
+from ..schemas import ApprovalAction, ContactReassign, LogisticsUpdate, CampaignCreate, HubCreate
 from ..dependencies import (
     get_current_user, require_hub_leader, require_minister,
     log_action, get_client_ip
@@ -1065,6 +1065,64 @@ async def list_hubs(
         }
         for h in hubs
     ]}
+
+
+@minister_router.post("/hubs", status_code=201)
+async def create_hub(
+    body: HubCreate,
+    user: User = Depends(require_minister),
+    db: Session = Depends(get_db),
+):
+    """Create a new hub for the active campaign."""
+    campaign = db.query(Campaign).filter(
+        Campaign.organisation_id == user.organisation_id,
+        Campaign.status == CampaignStatus.active,
+    ).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="No active campaign. Create a campaign first.")
+    hub = Hub(
+        campaign_id=campaign.id,
+        organisation_id=user.organisation_id,
+        name=body.name.strip(),
+        zone=body.zone,
+    )
+    # Assign location/description if the columns exist (added by migration)
+    if hasattr(hub, 'location') and body.location:
+        hub.location = body.location
+    if hasattr(hub, 'description') and body.description:
+        hub.description = body.description
+    db.add(hub)
+    db.commit()
+    db.refresh(hub)
+    log_action(db, user, "hub.created", "hub", hub.id)
+    return {"id": hub.id, "name": hub.name, "detail": "Hub created"}
+
+
+@minister_router.patch("/hubs/{hub_id}")
+async def update_hub(
+    hub_id: str,
+    body: HubCreate,
+    user: User = Depends(require_minister),
+    db: Session = Depends(get_db),
+):
+    """Update hub name, zone, location, description."""
+    hub = db.query(Hub).filter(
+        Hub.id == hub_id,
+        Hub.organisation_id == user.organisation_id,
+    ).first()
+    if not hub:
+        raise HTTPException(status_code=404, detail="Hub not found")
+    if body.name:
+        hub.name = body.name.strip()
+    if body.zone is not None:
+        hub.zone = body.zone
+    if hasattr(hub, 'location') and body.location is not None:
+        hub.location = body.location
+    if hasattr(hub, 'description') and body.description is not None:
+        hub.description = body.description
+    db.commit()
+    log_action(db, user, "hub.updated", "hub", hub.id)
+    return {"detail": "Hub updated"}
 
 
 @minister_router.get("/hubs/{hub_id}/detail")

@@ -37,6 +37,7 @@ export default function JoinPage() {
   }, [token]);
 
   async function sendOtp() {
+    if (!name.trim()) { toast('Please enter your full name', 'error'); return; }
     if (!phone.trim()) { toast('Enter your phone number', 'error'); return; }
     setSending(true);
     try {
@@ -50,7 +51,7 @@ export default function JoinPage() {
     if (otp.length < 6) { toast('Enter the full 6-digit code', 'error'); return; }
     setVerifying(true);
     try {
-      await api.claimInvite({ token, phone: phone.trim(), otp, name: name.trim() || undefined });
+      await api.claimInvite({ token, phone: phone.trim(), otp, name: name.trim() });
       await refreshUser();
       toast('Account created!', 'success');
       navigate('/', { replace: true });

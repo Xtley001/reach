@@ -59,7 +59,7 @@ export default function LandingPage() {
           </div>
 
           <h1 style={{
-            fontFamily: 'var(--font-sans)', fontStyle: 'normal', fontWeight: 800,
+            fontFamily: 'var(--font-sans)', fontStyle: 'italic', fontWeight: 800,
             fontSize: 'clamp(40px, 5.5vw, 64px)',
             lineHeight: 1.15, letterSpacing: '-0.01em',
             color: 'var(--text)', marginBottom: 24,

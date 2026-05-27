@@ -440,3 +440,10 @@ DO $$ DECLARE v INT; BEGIN
   IF v = 0 THEN RAISE WARNING 'partial contact index missing'; END IF;
   RAISE NOTICE 'REACH schema setup complete.';
 END $$;
+-- Migration: 20260527_hub_location_fields
+ALTER TABLE hubs ADD COLUMN IF NOT EXISTS location    TEXT;
+ALTER TABLE hubs ADD COLUMN IF NOT EXISTS description TEXT;
+
+COMMENT ON COLUMN hubs.zone        IS 'Broad zone or district (e.g. "North Campus")';
+COMMENT ON COLUMN hubs.location    IS 'Street address or landmark (e.g. "Kuti Gate, UI")';
+COMMENT ON COLUMN hubs.description IS 'Optional free-text description for this hub';
