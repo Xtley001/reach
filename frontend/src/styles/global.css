@@ -726,17 +726,19 @@ button { font-family: var(--font-sans); cursor: pointer; }
   box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.18);
 }
 
-/* CRIT-01: Dark mode — OTP cells were effectively invisible (#242220 on #131210 ≈ 1.4:1).
-   Fix: inner shadow + lighter border achieve ≥ 3:1 contrast for non-text UI (WCAG 1.4.11). */
+/* CRIT-01: Dark mode — OTP cells must be clearly visible against #131210 page bg.
+   Previous fix used #2C2A28 bg / #35322E border — both still near-black, invisible.
+   New fix: medium-grey border (#6E6B64) gives ~4:1 contrast on dark bg, cell bg
+   is #252320 (just enough lift), and a subtle inset highlight confirms the boundary. */
 [data-theme="dark"] .otp-cell {
-  background: #2C2A28;                        /* slightly lighter than --bg-3 */
-  border: 1.5px solid var(--border-2);        /* #35322E — more distinct from bg */
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.4);
+  background: #252320;
+  border: 1.5px solid #6E6B64;              /* medium grey — clearly visible */
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 [data-theme="dark"] .otp-cell:focus {
-  border-color: var(--accent);               /* #4A9463 */
-  box-shadow: 0 0 0 3px rgba(74, 148, 99, 0.25);
-  background: #322F2C;                        /* noticeably lighter on focus */
+  border-color: var(--accent);              /* #4A9463 green */
+  background: #2C2A27;
+  box-shadow: 0 0 0 3px rgba(74, 148, 99, 0.3);
 }
 
 /* HIGH-06: Error state — red border + shake animation */
