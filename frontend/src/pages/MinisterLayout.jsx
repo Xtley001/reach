@@ -11,7 +11,7 @@ const MinisterCampaigns    = lazy(() => import('./minister/MinisterCampaigns'));
 const MinisterExports      = lazy(() => import('./minister/MinisterExports'));
 const MinisterProfile      = lazy(() => import('./minister/MinisterProfile'));
 // FIX-007: HubDetail was fully built but never routed
-const HubDetail            = lazy(() => import('./hub/HubDetail'));
+const HubDetail            = lazy(() => import('./minister/HubDetail'));
 
 function PageFallback() {
   return <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner large /></div>;
