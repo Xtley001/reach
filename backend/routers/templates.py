@@ -131,3 +131,4 @@ async def delete_template(
     t.is_active = False
     db.commit()
     log_action(db, user, "template.deleted", "template", template_id)
+    return None

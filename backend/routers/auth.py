@@ -412,6 +412,7 @@ async def logout(
         db.commit()
     response.delete_cookie(REFRESH_TOKEN_COOKIE, path="/")
     log_action(db, user, "auth.logout", ip_address=get_client_ip(request))
+    return None
 
 
 @router.post("/revoke-all", status_code=204)
@@ -423,6 +424,7 @@ async def revoke_all_sessions(
     db.commit()
     log_action(db, caller, "auth.global_revoke", ip_address=get_client_ip(request),
                metadata={"triggered_by": caller.id})
+    return None
 
 
 # ─── Me ───────────────────────────────────────────────────────────────────────
@@ -465,3 +467,4 @@ async def revoke_session(
         raise HTTPException(status_code=404, detail="Session not found")
     token.revoked = True
     db.commit()
+    return None

@@ -336,6 +336,7 @@ async def delete_contact(
     # SEC-05: Soft delete — preserves audit trail and FK integrity
     contact.deleted_at = datetime.now(timezone.utc)
     db.commit()
+    return None
 
 
 # ─── Call Queue ───────────────────────────────────────────────────────────────
@@ -520,3 +521,4 @@ async def hard_delete_contact(
     log_action(db, user, "contact.hard_deleted", "contact", contact_id, get_client_ip(request))
     db.delete(contact)
     db.commit()
+    return None
