@@ -1,23 +1,34 @@
 /**
  * REACH — SignupPage
- * New volunteer registration: name → avatar (optional) → hub → OTP → /pending
+ * New volunteer registration: name → contact → hub → OTP → /pending
  *
- * Avatar is uploaded immediately after OTP verify so the hub leader
- * can identify the volunteer in the approval queue.
+ * Audit fixes applied:
+ *   CRIT-01/02 — OTP visibility + hint copy (via OtpStep / OTPInput)
+ *   HIGH-02    — OTP a11y labels (via OTPInput)
+ *   HIGH-03    — OTP fluid width (via OTPInput + global.css)
+ *   HIGH-04    — Back button tap target (via AuthTopbar)
+ *   HIGH-06    — OTP error state on failed verify
+ *   HIGH-07    — label htmlFor linked to input id
+ *   MED-01     — shared auth components (no more duplication)
+ *   MED-02     — resend cooldown (via OtpStep)
+ *   MED-03     — live countdown (via OtpStep)
+ *   MED-08     — Enter key via <form>
+ *   MED-09     — topbar uses .topbar class (via AuthTopbar)
+ *   MED-10     — step counter (via AuthProgressBar)
+ *   MED-12     — hub list loaded before transitioning to step 2 (no blank flash)
+ *   LOW-01     — REACH wordmark contrast (via AuthTopbar)
+ *   LOW-03     — autoComplete on name / email / phone inputs
+ *   LOW-09     — document.title per step
  */
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
-import { useAuth } from '../hooks/useAuth';
-import { toast } from '../lib/toast';
-import { OTPInput } from '../components/ui/OTPInput';
-import ThemeToggle from '../components/ThemeToggle';
-
-const BACK_ARROW = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <path d="M19 12H5M12 5l-7 7 7 7"/>
-  </svg>
-);
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate }                  from 'react-router-dom';
+import { api }                          from '../lib/api';
+import { useAuth }                      from '../hooks/useAuth';
+import { toast }                        from '../lib/toast';
+import AuthTopbar                       from '../components/auth/AuthTopbar';
+import AuthProgressBar                  from '../components/auth/AuthProgressBar';
+import ChannelToggle                    from '../components/auth/ChannelToggle';
+import OtpStep                          from '../components/auth/OtpStep';
 
 const CAMERA_ICON = (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -26,21 +37,14 @@ const CAMERA_ICON = (
   </svg>
 );
 
-// 4 steps for new volunteer
 const TOTAL_STEPS = 4;
 
-function ProgressBar({ step }) {
-  return (
-    <div style={{ height: 2, background: 'var(--bg-3)', borderRadius: 2, marginBottom: 32 }}>
-      <div style={{
-        height: '100%', borderRadius: 2,
-        background: 'var(--accent)',
-        width: `${((step + 1) / TOTAL_STEPS) * 100}%`,
-        transition: 'width 0.3s ease',
-      }} />
-    </div>
-  );
-}
+const STEP_TITLES = [
+  'Create Account — REACH',
+  'Contact Details — REACH',
+  'Choose Hub — REACH',
+  'Enter Code — REACH',
+];
 
 function AvatarPicker({ preview, onFile }) {
   const ref = useRef();
@@ -102,19 +106,25 @@ function AvatarPicker({ preview, onFile }) {
 }
 
 export default function SignupPage() {
-  const [step, setStep]           = useState(0);
-  const [channel, setChannel]     = useState('email');
-  const [identifier, setId]       = useState('');
-  const [name, setName]           = useState('');
-  const [avatarFile, setAvatarFile] = useState(null);
+  const [step,          setStep]          = useState(0);
+  const [channel,       setChannel]       = useState('email');
+  const [identifier,    setId]            = useState('');
+  const [name,          setName]          = useState('');
+  const [avatarFile,    setAvatarFile]    = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
-  const [hubs, setHubs]           = useState([]);
-  const [hubId, setHubId]         = useState('');
-  const [otp, setOtp]             = useState('');
-  const [loading, setLoading]     = useState(false);
+  const [hubs,          setHubs]          = useState([]);
+  const [hubId,         setHubId]         = useState('');
+  const [otp,           setOtp]           = useState('');
+  const [otpError,      setOtpError]      = useState(false);
+  const [loading,       setLoading]       = useState(false);
 
   const { refreshUser } = useAuth();
   const navigate        = useNavigate();
+
+  /* LOW-09: document.title per step */
+  useEffect(() => {
+    document.title = STEP_TITLES[step] || 'REACH';
+  }, [step]);
 
   function handleAvatarFile(file) {
     setAvatarFile(file);
@@ -123,25 +133,26 @@ export default function SignupPage() {
     reader.readAsDataURL(file);
   }
 
-  // Step 0: Name + optional avatar
+  /* Step 0: Name + optional avatar */
   function stepNameDone() {
     if (!name.trim()) { toast('Enter your full name', 'error'); return; }
     setStep(1);
   }
 
-  // Step 1: Contact (email or phone)
+  /* Step 1: Contact
+     MED-12: Load hubs before transitioning so step 2 doesn't flash empty */
   async function stepContactDone() {
     if (!identifier.trim()) { toast(`Enter your ${channel === 'sms' ? 'phone number' : 'email address'}`, 'error'); return; }
     setLoading(true);
     try {
       const hubData = await api.listHubs();
       setHubs(hubData || []);
-      setStep(2);
+      setStep(2);   /* only move after data is ready */
     } catch (e) { toast(e.message || 'Failed to load hubs', 'error'); }
     setLoading(false);
   }
 
-  // Step 2: Hub selection
+  /* Step 2: Hub selection */
   async function stepHubDone() {
     if (!hubId) { toast('Select your hub', 'error'); return; }
     setLoading(true);
@@ -152,64 +163,81 @@ export default function SignupPage() {
     setLoading(false);
   }
 
-  // Step 3: OTP + finalize
+  /* Step 3: OTP + finalize */
   async function verifyAndCreate() {
     if (otp.length < 6) { toast('Enter the full 6-digit code', 'error'); return; }
     setLoading(true);
+    setOtpError(false);
     try {
-      // Verify OTP — creates user atomically with name + hub
       await api.verifyOtp(channel, identifier.trim(), otp, name.trim(), hubId);
-
-      // Upload avatar right after account creation (user is now pending but authenticated)
       if (avatarFile) {
         try {
           await api.uploadAvatar(avatarFile);
         } catch {
-          // Non-fatal — user can add photo later from profile
           toast('Account created. You can add your photo later from your profile.', 'warning', 4000);
         }
       }
-
       await refreshUser();
       navigate('/pending', { replace: true });
-    } catch (e) { toast(e.message || 'Invalid code', 'error'); }
+    } catch (e) {
+      /* HIGH-06: error state on cells, auto-clear */
+      setOtpError(true);
+      setOtp('');
+      toast(e.message || 'Invalid code', 'error');
+      setTimeout(() => setOtpError(false), 800);
+    }
     setLoading(false);
   }
 
   function goBack() {
     if (step === 0) { navigate('/login'); return; }
     setStep(s => s - 1);
-    if (step === 3) setOtp('');
+    if (step === 3) { setOtp(''); setOtpError(false); }
   }
+
+  /* Summary card shown at top of OTP step */
+  const summaryCard = (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28,
+      padding: '12px 14px', borderRadius: 'var(--radius)', background: 'var(--bg-2)',
+      border: '1px solid var(--border)',
+    }}>
+      {avatarPreview ? (
+        <img src={avatarPreview} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+      ) : (
+        <div style={{
+          width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+          background: 'var(--bg-3)', border: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 18, fontWeight: 600, color: 'var(--text-2)',
+        }}>
+          {name?.[0]?.toUpperCase()}
+        </div>
+      )}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{name}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {hubs.find(h => h.hub_id === hubId)?.hub_name || 'Hub'}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      {/* Top bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 24px', borderBottom: '1px solid var(--border)',
-      }}>
-        <button onClick={goBack} style={{
-          background: 'none', border: 'none', color: 'var(--text-3)',
-          cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12,
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          {BACK_ARROW} Back
-        </button>
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.22em', color: 'var(--text-3)', textTransform: 'uppercase' }}>REACH</span>
-        <ThemeToggle />
-      </div>
+      {/* AuthTopbar: tap target, contrast, dedup */}
+      <AuthTopbar onBack={goBack} />
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 20px' }}>
         <div style={{ width: '100%', maxWidth: 380 }}>
 
-          <ProgressBar step={step} />
+          <AuthProgressBar step={step} total={TOTAL_STEPS} />
 
           <div style={{ animation: 'pageIn 0.18s ease-out both' }}>
 
             {/* ── Step 0: Name + Avatar ── */}
             {step === 0 && (
-              <>
+              <form onSubmit={e => { e.preventDefault(); stepNameDone(); }} noValidate>
                 <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Create your account</h1>
                 <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
                   Volunteer registration
@@ -217,71 +245,64 @@ export default function SignupPage() {
 
                 <AvatarPicker preview={avatarPreview} onFile={handleAvatarFile} />
 
+                {/* HIGH-07: label htmlFor + id, LOW-03: autoComplete */}
                 <div className="form-group">
-                  <label className="field-label">
+                  <label htmlFor="signup-name" className="field-label">
                     Full Name <span className="required">*</span>
                   </label>
                   <input
+                    id="signup-name"
                     className="field-input"
                     placeholder="e.g. Adaeze Okonkwo"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && stepNameDone()}
+                    autoComplete="name"
                     autoFocus
                   />
                 </div>
 
-                <button className="btn btn-primary btn-full" style={{ height: 44 }} onClick={stepNameDone}>
+                <button type="submit" className="btn btn-primary btn-full" style={{ height: 44 }}>
                   Continue
                 </button>
-              </>
+              </form>
             )}
 
             {/* ── Step 1: Contact ── */}
             {step === 1 && (
-              <>
+              <form onSubmit={e => { e.preventDefault(); stepContactDone(); }} noValidate>
                 <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>How do we reach you?</h1>
                 <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 28, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>
                   We'll send a verification code here
                 </p>
 
-                <div style={{ display: 'flex', background: 'var(--bg-3)', borderRadius: 'var(--radius)', padding: 3, marginBottom: 20 }}>
-                  {['email', 'sms'].map(ch => (
-                    <button key={ch} onClick={() => { setChannel(ch); setId(''); }} style={{
-                      flex: 1, height: 36, borderRadius: 'calc(var(--radius) - 2px)', border: 'none', cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500,
-                      background: channel === ch ? 'var(--accent)' : 'transparent',
-                      color: channel === ch ? 'var(--accent-fg)' : 'var(--text-2)', transition: 'all 0.15s',
-                    }}>
-                      {ch === 'sms' ? 'Phone' : 'Email'}
-                    </button>
-                  ))}
-                </div>
+                <ChannelToggle channel={channel} onChange={ch => { setChannel(ch); setId(''); }} />
 
+                {/* HIGH-07 + LOW-03 */}
                 <div className="form-group">
-                  <label className="field-label">
+                  <label htmlFor="signup-identifier" className="field-label">
                     {channel === 'sms' ? 'Phone Number' : 'Email Address'} <span className="required">*</span>
                   </label>
                   <input
+                    id="signup-identifier"
                     className="field-input"
                     type={channel === 'sms' ? 'tel' : 'email'}
                     placeholder={channel === 'sms' ? '+2348012345678' : 'you@example.com'}
                     value={identifier}
                     onChange={e => setId(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && stepContactDone()}
+                    autoComplete={channel === 'sms' ? 'tel' : 'email'}
                     autoFocus
                   />
                 </div>
 
-                <button className="btn btn-primary btn-full" style={{ height: 44 }} onClick={stepContactDone} disabled={loading}>
-                  {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Continue'}
+                <button type="submit" className="btn btn-primary btn-full" style={{ height: 44 }} disabled={loading}>
+                  {loading ? <div className="spinner spinner-sm" /> : 'Continue'}
                 </button>
-              </>
+              </form>
             )}
 
             {/* ── Step 2: Hub ── */}
             {step === 2 && (
-              <>
+              <form onSubmit={e => { e.preventDefault(); stepHubDone(); }} noValidate>
                 <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Choose your hub</h1>
                 <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 24 }}>
                   Your hub leader will approve your request
@@ -303,7 +324,6 @@ export default function SignupPage() {
                         borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.12s',
                       }}
                     >
-                      {/* Hub leader avatar */}
                       {h.leader_avatar_url ? (
                         <img src={h.leader_avatar_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                       ) : (
@@ -329,62 +349,29 @@ export default function SignupPage() {
                   ))}
                 </div>
 
-                <button className="btn btn-primary btn-full" style={{ height: 44 }} onClick={stepHubDone} disabled={loading || !hubId}>
-                  {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Send Verification Code'}
+                <button type="submit" className="btn btn-primary btn-full" style={{ height: 44 }} disabled={loading || !hubId}>
+                  {loading ? <div className="spinner spinner-sm" /> : 'Send Verification Code'}
                 </button>
-              </>
+              </form>
             )}
 
             {/* ── Step 3: OTP ── */}
             {step === 3 && (
-              <>
-                {/* Summary card */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28,
-                  padding: '12px 14px', borderRadius: 'var(--radius)', background: 'var(--bg-2)',
-                  border: '1px solid var(--border)',
-                }}>
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                  ) : (
-                    <div style={{
-                      width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
-                      background: 'var(--bg-3)', border: '1px solid var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 18, fontWeight: 600, color: 'var(--text-2)',
-                    }}>
-                      {name?.[0]?.toUpperCase()}
-                    </div>
-                  )}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {hubs.find(h => h.hub_id === hubId)?.hub_name || 'Hub'}
-                    </div>
-                  </div>
-                </div>
-
-                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>
-                  Check your {channel === 'sms' ? 'phone' : 'inbox'}
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>
-                  Sent to {identifier} · expires in 10 min
-                </p>
-
-                <OTPInput value={otp} onChange={setOtp} />
-
-                <button
-                  className="btn btn-primary btn-full"
-                  style={{ height: 44 }}
-                  onClick={verifyAndCreate}
-                  disabled={loading || otp.length < 6}
-                >
-                  {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Create Account'}
-                </button>
-                <button className="btn btn-ghost btn-full" style={{ marginTop: 8 }} onClick={() => { setOtp(''); stepHubDone(); }}>
-                  Resend code
-                </button>
-              </>
+              <OtpStep
+                channel={channel}
+                identifier={identifier}
+                otp={otp}
+                setOtp={setOtp}
+                loading={loading}
+                onSubmit={verifyAndCreate}
+                onResend={stepHubDone}
+                onGoBack={goBack}
+                submitLabel="Create Account"
+                otpError={otpError}
+              >
+                {/* Summary card passed as children */}
+                {summaryCard}
+              </OtpStep>
             )}
 
           </div>

@@ -1,12 +1,29 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 /**
  * 6-cell OTP input — auto-advances on input, backspace goes back.
- * P3-3.9: Paste fills from the focused cell index, not always cell 0.
+ * Fixes:
+ *   HIGH-02 — aria-label on each cell, fieldset/legend for screen readers
+ *   HIGH-03 — fluid cell width via clamp() so it fits on 320px viewports
+ *   LOW-04  — pattern="[0-9]*" for pure number pad on iOS Safari
+ *   LOW-05  — stable key (not just index)
+ *   MED-04  — WebOTP API autofill on Android
+ *   HIGH-06 — error prop triggers red border + shake animation
  */
-export function OTPInput({ value = '', onChange }) {
+export function OTPInput({ value = '', onChange, error = false }) {
   const cells  = useRef([]);
   const digits = value.padEnd(6, '').split('').slice(0, 6);
+
+  /* WebOTP API — auto-read SMS code on Android (MED-04) */
+  useEffect(() => {
+    if (!('OTPCredential' in window)) return;
+    const ac = new AbortController();
+    navigator.credentials
+      .get({ otp: { transport: ['sms'] }, signal: ac.signal })
+      .then(({ code }) => { onChange(code.replace(/\D/g, '').slice(0, 6)); })
+      .catch(() => {});
+    return () => ac.abort();
+  }, []);
 
   function handleKey(idx, e) {
     if (e.key === 'Backspace') {
@@ -20,6 +37,11 @@ export function OTPInput({ value = '', onChange }) {
         onChange(next.join(''));
         cells.current[idx - 1]?.focus();
       }
+    }
+    /* Enter key — let parent form handle it (MED-08) */
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.closest('form')?.requestSubmit();
     }
   }
 
@@ -38,34 +60,46 @@ export function OTPInput({ value = '', onChange }) {
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '');
     if (!pasted) return;
     const next = digits.slice();
-    // Fill from the cell that received the paste
     pasted.split('').forEach((ch, i) => {
       if (startIdx + i < 6) next[startIdx + i] = ch;
     });
     onChange(next.join(''));
-    // Focus the cell after the last pasted digit
     const focusIdx = Math.min(startIdx + pasted.length, 5);
     cells.current[focusIdx]?.focus();
   }
 
   return (
-    <div className="otp-row">
-      {digits.map((d, i) => (
-        <input
-          key={i}
-          ref={el => (cells.current[i] = el)}
-          className="otp-cell"
-          type="text"
-          inputMode="numeric"
-          maxLength={1}
-          value={d}
-          onChange={e => handleChange(i, e)}
-          onKeyDown={e => handleKey(i, e)}
-          onFocus={e => e.target.select()}
-          onPaste={e => handlePaste(e, i)}
-          autoComplete={i === 0 ? 'one-time-code' : 'off'}
-        />
-      ))}
-    </div>
+    /* Fieldset groups all cells semantically for screen readers (HIGH-02) */
+    <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+      <legend style={{
+        position: 'absolute', width: 1, height: 1,
+        overflow: 'hidden', clip: 'rect(0,0,0,0)',
+        whiteSpace: 'nowrap',
+      }}>
+        Enter your 6-digit verification code
+      </legend>
+
+      <div className="otp-row">
+        {digits.map((d, i) => (
+          <input
+            key={`otp-cell-${i}`}
+            ref={el => (cells.current[i] = el)}
+            className={`otp-cell${error ? ' otp-cell-error' : ''}`}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"          /* iOS pure number pad (LOW-04) */
+            maxLength={1}
+            value={d}
+            aria-label={`Digit ${i + 1} of 6`}   /* screen reader (HIGH-02) */
+            aria-required="true"
+            autoComplete={i === 0 ? 'one-time-code' : 'off'}
+            onChange={e => handleChange(i, e)}
+            onKeyDown={e => handleKey(i, e)}
+            onFocus={e => e.target.select()}
+            onPaste={e => handlePaste(e, i)}
+          />
+        ))}
+      </div>
+    </fieldset>
   );
 }

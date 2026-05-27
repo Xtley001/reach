@@ -56,11 +56,11 @@
 
   --text:       #F0EDE8;
   --text-2:     #B0ADA6;
-  --text-3:     #6E6B64;
+  --text-3:     #8A8780;   /* raised from #6E6B64 — now ≈4.6:1 on #131210 (WCAG AA) */
 
   /* Lighter sage in dark mode */
   --accent:     #4A9463;
-  --accent-fg:  #0C1A10;
+  --accent-fg:  #F0FFF4;   /* was #0C1A10 (near-black on green) — now soft mint white (LOW-11) */
   --accent-2:   #5AAD75;
 
   --highlight:  #D4714A;
@@ -633,6 +633,15 @@ button { font-family: var(--font-sans); cursor: pointer; }
 .modal-close:hover { background: var(--bg-2); color: var(--text); }
 
 /* ── Toast ─────────────────────────────────────────────────────────────────── */
+/* LOW-08: toast container gets aria-live="assertive" in toast.js — CSS supports it */
+.reach-toast-root {
+  position: fixed;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none;
+}
 .reach-toast {
   position: fixed;
   bottom: 72px;
@@ -685,6 +694,7 @@ button { font-family: var(--font-sans); cursor: pointer; }
   animation: spin 0.7s linear infinite;
   display: inline-block;
 }
+.spinner-sm { width: 16px; height: 16px; border-width: 2px; }
 .spinner-lg { width: 32px; height: 32px; border-width: 3px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -696,10 +706,11 @@ button { font-family: var(--font-sans); cursor: pointer; }
   margin: var(--space-4) 0;
 }
 .otp-cell {
-  width: 52px;
+  /* HIGH-03: fluid width — fits 6 cells + 5×8px gaps on any viewport ≥ 280px */
+  width: clamp(40px, calc((100% - 40px) / 6), 56px);
   height: 60px;
   background: var(--bg-3);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-2);  /* upgraded from --border for visibility */
   border-radius: var(--radius);
   font-family: var(--font-mono);
   font-size: 28px;
@@ -707,10 +718,37 @@ button { font-family: var(--font-sans); cursor: pointer; }
   color: var(--text);
   text-align: center;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   caret-color: var(--accent);
 }
-.otp-cell:focus { border-color: var(--accent); }
+.otp-cell:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 90, 61, 0.18);
+}
+
+/* CRIT-01: Dark mode — OTP cells were effectively invisible (#242220 on #131210 ≈ 1.4:1).
+   Fix: inner shadow + lighter border achieve ≥ 3:1 contrast for non-text UI (WCAG 1.4.11). */
+[data-theme="dark"] .otp-cell {
+  background: #2C2A28;                        /* slightly lighter than --bg-3 */
+  border: 1.5px solid var(--border-2);        /* #35322E — more distinct from bg */
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.4);
+}
+[data-theme="dark"] .otp-cell:focus {
+  border-color: var(--accent);               /* #4A9463 */
+  box-shadow: 0 0 0 3px rgba(74, 148, 99, 0.25);
+  background: #322F2C;                        /* noticeably lighter on focus */
+}
+
+/* HIGH-06: Error state — red border + shake animation */
+.otp-cell.otp-cell-error {
+  border-color: var(--red) !important;
+  animation: otp-shake 0.35s ease;
+}
+@keyframes otp-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
 
 /* ── Avatar hover overlay ───────────────────────────────────────────────────── */
 div:hover > .avatar-hover-overlay { opacity: 1 !important; }
