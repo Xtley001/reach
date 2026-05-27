@@ -699,16 +699,25 @@ button { font-family: var(--font-sans); cursor: pointer; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── OTP Input ─────────────────────────────────────────────────────────────── */
+fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
 .otp-row {
-  display: flex;
+  display: flex !important;
   gap: var(--space-2);
   justify-content: center;
-  margin: var(--space-4) 0;
+  margin: 16px 0 20px 0 !important;
 }
 .otp-cell {
   /* HIGH-03: fluid width — fits 6 cells + 5×8px gaps on any viewport ≥ 280px */
-  width: clamp(40px, calc((100% - 40px) / 6), 56px);
-  height: 60px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: clamp(40px, calc((100% - 40px) / 6), 56px) !important;
+  height: 60px !important;
   background: var(--bg-3);
   border: 1.5px solid var(--border-2);  /* upgraded from --border for visibility */
   border-radius: var(--radius);

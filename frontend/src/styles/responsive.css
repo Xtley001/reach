@@ -32,8 +32,8 @@
   }
 }
 
-/* Ensure OTP boxes fit on narrow screens */
+/* Ensure OTP cells fit on narrow screens */
 @media (max-width: 360px) {
-  .otp-box { width: 38px; height: 46px; font-size: 19px; }
+  .otp-cell { width: 38px; height: 46px; font-size: 19px; }
   .otp-row { gap: 6px; }
 }
