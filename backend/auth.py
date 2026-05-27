@@ -90,11 +90,12 @@ async def _dispatch_brevo(identifier: str, otp: str, channel: str) -> bool:
                 r = await client.post("https://api.brevo.com/v3/transactionalSMS/sms", json=payload, headers=headers)
                 r.raise_for_status()
         else:
+            from .email_client import _otp_html
             payload = {
                 "sender":    {"name": "REACH", "email": settings.BREVO_SENDER or "noreply@reach-app.com"},
                 "to":        [{"email": identifier}],
-                "subject":   "Your REACH verification code",
-                "htmlContent": f"<p>Your verification code is: <strong>{otp}</strong></p><p>Valid for 10 minutes. Do not share this code.</p>",
+                "subject":   f"Your REACH code: {otp}",
+                "htmlContent": _otp_html(otp),
             }
             async with httpx.AsyncClient(timeout=10) as client:
                 r = await client.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
