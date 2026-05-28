@@ -30,17 +30,68 @@ function LoadingScreen({ slowStart = false }) {
     <div style={{
       minHeight: '100dvh', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: 20,
+      position: 'relative', overflow: 'hidden',
     }}>
-      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 20, fontWeight: 600, letterSpacing: '0.25em', color: 'var(--text)' }}>
-        REACH
+      {/* Animated volunteer heads converging */}
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+      }}>
+        <svg width="400" height="400" viewBox="0 0 400 400" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.08))' }}>
+          <defs>
+            <style>{`
+              @keyframes converge {
+                0% { opacity: 0; transform: translate(var(--x), var(--y)); }
+                20% { opacity: 1; }
+                100% { opacity: 1; transform: translate(0, 0); }
+              }
+              @keyframes fadeOut {
+                0% { opacity: 1; }
+                100% { opacity: 0; }
+              }
+              .volunteer-head {
+                animation: converge 2.5s ease-in-out infinite;
+              }
+              .volunteer-head:nth-child(1) { --x: -120px; --y: -140px; animation-delay: 0s; }
+              .volunteer-head:nth-child(2) { --x: 140px; --y: -130px; animation-delay: 0.15s; }
+              .volunteer-head:nth-child(3) { --x: -150px; --y: 100px; animation-delay: 0.3s; }
+              .volunteer-head:nth-child(4) { --x: 160px; --y: 110px; animation-delay: 0.45s; }
+              .volunteer-head:nth-child(5) { --x: -80px; --y: 150px; animation-delay: 0.6s; }
+              .volunteer-head:nth-child(6) { --x: 100px; --y: -160px; animation-delay: 0.75s; }
+              .volunteer-head:nth-child(7) { --x: 130px; --y: 60px; animation-delay: 0.9s; }
+              .volunteer-head:nth-child(8) { --x: -140px; --y: -60px; animation-delay: 1.05s; }
+            `}</style>
+          </defs>
+          {/* Animated converging volunteer heads */}
+          {[...Array(8)].map((_, i) => (
+            <g key={i} className="volunteer-head" transform="translate(200, 200)">
+              {/* Head circle */}
+              <circle cx="0" cy="0" r="18" fill="var(--accent)" opacity="0.8" />
+              {/* Dot on top representing person */}
+              <circle cx="0" cy="-22" r="3" fill="var(--accent)" opacity="0.9" />
+              {/* Simple face */}
+              <circle cx="-6" cy="-2" r="2" fill="var(--accent-fg)" opacity="0.7" />
+              <circle cx="6" cy="-2" r="2" fill="var(--accent-fg)" opacity="0.7" />
+            </g>
+          ))}
+          {/* Central REACH glow */}
+          <circle cx="200" cy="200" r="50" fill="none" stroke="var(--accent)" strokeWidth="2" opacity="0.3" />
+          <circle cx="200" cy="200" r="45" fill="var(--accent)" opacity="0.1" />
+        </svg>
       </div>
-      <Spinner />
-      {/* P2-5.4: Cold start message after 2.5s */}
-      {slowStart && (
-        <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontWeight: 300, marginTop: 4, animation: 'pageIn 0.3s ease-out' }}>
-          Starting up…
+
+      {/* Center content */}
+      <div style={{ position: 'relative', zIndex: 10, textAlign: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 20, fontWeight: 600, letterSpacing: '0.25em', color: 'var(--text)' }}>
+          REACH
         </div>
-      )}
+        {/* P2-5.4: Cold start message after 2.5s */}
+        {slowStart && (
+          <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-sans)', fontWeight: 300, marginTop: 12, animation: 'pageIn 0.3s ease-out' }}>
+            Starting up…
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -99,10 +150,8 @@ function AppRoutes() {
   if (user.role === 'hub_leader') return (
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
-        <Route path="/hub/*"     element={<HubLeaderLayout />} />
-        <Route path="/attend"    element={<AttendLayout />} />
-        <Route path="/decisions" element={<DecisionsLayout />} />
-        <Route path="*"          element={<Navigate to="/hub/dashboard" replace />} />
+        <Route path="/hub/*" element={<HubLeaderLayout />} />
+        <Route path="*"      element={<Navigate to="/hub/dashboard" replace />} />
       </Routes>
     </Suspense>
   );

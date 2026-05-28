@@ -105,58 +105,60 @@ export default function JoinPage() {
     <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <TopBar />
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ width: '100%', maxWidth: 380 }}>
-          <div style={{ marginBottom: 28 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 12 }}>You've been invited</h1>
-            <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16, lineHeight: 1.6 }}>
-              You've been invited to join REACH as part of a ministry outreach team.
-            </p>
-            <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
-              <span className="badge badge-gold">{ROLE_LABELS[preview.role] || preview.role}</span>
-              {preview.hub_name && <span className="badge">{preview.hub_name}{preview.hub_zone ? ` · ${preview.hub_zone}` : ''}</span>}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: '0' }}>
+        <div style={{ width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-4)', overflowY: 'auto' }}>
+          <div style={{ width: '100%' }}>
+            <div style={{ marginBottom: 28 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 12 }}>You've been invited</h1>
+              <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 16, lineHeight: 1.6 }}>
+                You've been invited to join REACH as part of a ministry outreach team.
+              </p>
+              <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+                <span className="badge badge-gold">{ROLE_LABELS[preview.role] || preview.role}</span>
+                {preview.hub_name && <span className="badge">{preview.hub_name}{preview.hub_zone ? ` · ${preview.hub_zone}` : ''}</span>}
+              </div>
             </div>
-          </div>
 
-          <div className="card" style={{ animation: 'pageIn 0.15s ease-out both' }}>
-            {step === 0 ? (
-              <>
-                <div className="form-group">
-                  <label className="field-label">Your Name</label>
-                  <input className="field-input" placeholder="Full name" value={name} onChange={e => setName(e.target.value)} />
-                </div>
-                <div className="form-group">
-                  <label className="field-label">Phone Number <span className="required">*</span></label>
-                  <input
-                    className="field-input" type="tel"
-                    placeholder="+2348012345678"
-                    value={phone} onChange={e => setPhone(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && sendOtp()}
-                    autoFocus
-                  />
-                  {preview.phone_hint && (
-                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
-                      Invite issued for number ending in {preview.phone_hint}
-                    </div>
-                  )}
-                </div>
-                <button className="btn btn-primary btn-full btn-full-force" style={{ height: 44 }} onClick={sendOtp} disabled={sending}>
-                  {sending ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Send Verification Code'}
-                </button>
-              </>
-            ) : (
-              <>
-                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>Check your phone</p>
-                <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 24, fontFamily: 'var(--font-mono)' }}>Sent to {phone} · expires in 10 min</p>
-                <OTPInput value={otp} onChange={setOtp} />
-                <button className="btn btn-primary btn-full btn-full-force" style={{ height: 44 }} onClick={claim} disabled={verifying || otp.length < 6}>
-                  {verifying ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Create Account'}
-                </button>
-                <button className="btn btn-ghost btn-full btn-full-force" style={{ marginTop: 8 }} onClick={() => { setStep(0); setOtp(''); }}>
-                  Change number
-                </button>
-              </>
-            )}
+            <div className="card" style={{ animation: 'pageIn 0.15s ease-out both' }}>
+              {step === 0 ? (
+                <>
+                  <div className="form-group">
+                    <label className="field-label">Your Name</label>
+                    <input className="field-input" placeholder="Full name" value={name} onChange={e => setName(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="field-label">Phone Number <span className="required">*</span></label>
+                    <input
+                      className="field-input" type="tel"
+                      placeholder="+2348012345678"
+                      value={phone} onChange={e => setPhone(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && sendOtp()}
+                      autoFocus
+                    />
+                    {preview.phone_hint && (
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                        Invite issued for number ending in {preview.phone_hint}
+                      </div>
+                    )}
+                  </div>
+                  <button className="btn btn-primary btn-full btn-full-force" style={{ height: 44 }} onClick={sendOtp} disabled={sending}>
+                    {sending ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Send Verification Code'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 4 }}>Check your phone</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 24, fontFamily: 'var(--font-mono)' }}>Sent to {phone} · expires in 10 min</p>
+                  <OTPInput value={otp} onChange={setOtp} />
+                  <button className="btn btn-primary btn-full btn-full-force" style={{ height: 44 }} onClick={claim} disabled={verifying || otp.length < 6}>
+                    {verifying ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Create Account'}
+                  </button>
+                  <button className="btn btn-ghost btn-full btn-full-force" style={{ marginTop: 8 }} onClick={() => { setStep(0); setOtp(''); }}>
+                    Change number
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
