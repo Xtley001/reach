@@ -5,6 +5,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import VolunteerHome from './volunteer/VolunteerHome';
 import ContactsList from './volunteer/ContactsList';
 import AddContact from './volunteer/AddContact';
+import BulkAddContacts from './volunteer/BulkAddContacts';
 import CallQueue from './volunteer/CallQueue';
 import VolunteerProfile from './volunteer/VolunteerProfile';
 import { getPendingSync, syncPendingItems } from '../lib/offline';
@@ -31,6 +32,8 @@ export default function VolunteerLayout() {
   const { user, logout } = useAuth();
   const navigate         = useNavigate();
   const [addOpen, setAddOpen]           = useState(false);
+  const [bulkAddOpen, setBulkAddOpen]   = useState(false);
+  const [showAddMenu, setShowAddMenu]   = useState(false);
   const [pending, setPending]           = useState(0);
   const [syncing, setSyncing]           = useState(false);
   // FIX-009: track a contact ID opened from the home screen's recent list
@@ -62,6 +65,14 @@ export default function VolunteerLayout() {
     <div className="layout-outer">
       <div className="layout-main">
         <AddContact onDone={() => setAddOpen(false)} />
+      </div>
+    </div>
+  );
+
+  if (bulkAddOpen) return (
+    <div className="layout-outer">
+      <div className="layout-main">
+        <BulkAddContacts onDone={() => setBulkAddOpen(false)} />
       </div>
     </div>
   );
@@ -129,17 +140,48 @@ export default function VolunteerLayout() {
             Contacts
           </NavLink>
 
-          {/* Add FAB */}
-          <button
-            onClick={() => setAddOpen(true)}
-            style={{
-              width: 48, height: 48, borderRadius: 12,
-              background: 'var(--accent)', color: 'var(--accent-fg)',
-              border: 'none', cursor: 'pointer', fontSize: 24,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: 'var(--shadow)',
-            }}
-          >+</button>
+          {/* Add FAB with menu */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowAddMenu(!showAddMenu)}
+              style={{
+                width: 48, height: 48, borderRadius: 12,
+                background: 'var(--accent)', color: 'var(--accent-fg)',
+                border: 'none', cursor: 'pointer', fontSize: 24,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: 'var(--shadow)',
+              }}
+            >+</button>
+            {showAddMenu && (
+              <div style={{
+                position: 'absolute', bottom: 60, right: 0,
+                background: 'var(--bg)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)',
+                zIndex: 100, minWidth: 140,
+              }}>
+                <button
+                  onClick={() => { setAddOpen(true); setShowAddMenu(false); }}
+                  style={{
+                    width: '100%', padding: '10px 12px', textAlign: 'left',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    fontSize: 13, color: 'var(--text)', borderBottom: '1px solid var(--border)',
+                  }}
+                >
+                  Add One Contact
+                </button>
+                <button
+                  onClick={() => { setBulkAddOpen(true); setShowAddMenu(false); }}
+                  style={{
+                    width: '100%', padding: '10px 12px', textAlign: 'left',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    fontSize: 13, color: 'var(--text)',
+                  }}
+                >
+                  Bulk Add
+                </button>
+              </div>
+            )}
+          </div>
 
           <NavLink to="/vol/queue" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
             <NavIcon badge={pending}>
