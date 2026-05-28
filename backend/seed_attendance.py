@@ -103,13 +103,14 @@ OCCUPATIONS = [
 ]
 
 DECISION_TYPES = [
-    ("accepted_jesus", 0.45),
+    ("salvation",      0.45),
     ("rededication",   0.25),
-    ("referral",       0.20),
-    ("info_only",      0.10),
+    ("prayer",         0.15),
+    ("healing",        0.10),
+    ("holy_spirit",    0.05),
 ]
 
-ATTENDING_STATUS = ["yes", "no"]  # Valid values for currently_attending
+ATTENDING_STATUS = ["yes", "no", "used_to"]  # Valid values for currently_attending
 
 
 def gen_phone(i):
@@ -319,11 +320,11 @@ def seed():
                 # Decision
                 decision_type=decision_type,
                 decision_type_other=None,
-                first_time=(decision_type == "accepted_jesus"),
+                first_time=(decision_type == "salvation"),
                 currently_attending=rng.choice(ATTENDING_STATUS),
                 current_church=rng.choice(CHURCH_NAMES) if rng.random() > 0.4 else None,
-                wants_church_referral=(decision_type == "referral"),
-                referral_area=rng.choice(["Surulere", "Ikeja", "Lekki"]) if decision_type == "referral" else None,
+                wants_church_referral=False,
+                referral_area=None,
 
                 # Background
                 age_range=rng.choice(AGE_RANGES),
