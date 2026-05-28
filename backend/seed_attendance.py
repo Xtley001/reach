@@ -44,7 +44,7 @@ p = argparse.ArgumentParser(description="Seed attendance & decisions.")
 p.add_argument("--email", default=os.environ.get("SEED_ADMIN_EMAIL"))
 p.add_argument("--phone", default=os.environ.get("SEED_ADMIN_PHONE"))
 p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "The Standing Church"))
-p.add_argument("--count", type=int, default=300, help="Number of walk-in attendees (default 300)")
+p.add_argument("--count", type=int, default=2000, help="Number of walk-in attendees (default 2000)")
 args = p.parse_args()
 
 if not args.email or not args.phone:

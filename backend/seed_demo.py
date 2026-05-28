@@ -22,7 +22,7 @@ p = argparse.ArgumentParser()
 p.add_argument("--email", default=os.environ.get("SEED_ADMIN_EMAIL"))
 p.add_argument("--phone", default=os.environ.get("SEED_ADMIN_PHONE"))
 p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "The Standing Church"))
-p.add_argument("--count", type=int, default=100, help="Number of contacts to seed (default 100)")
+p.add_argument("--count", type=int, default=5000, help="Number of contacts to seed (default 5000)")
 args = p.parse_args()
 
 if not args.email or not args.phone:
@@ -366,7 +366,7 @@ def seed():
             loc   = rng.choice(LOCATIONS)
             trans = rng.random() < 0.18   # ~18% need transport
             notes = rng.choice(NOTES_POOL)
-            vol   = vol_objs[idx % len(vol_objs)]
+            vol   = rng.choice(vol_objs)  # Random volunteer instead of round-robin
             # spread creation times over last 7 days
             created_at = datetime.now(timezone.utc) - timedelta(
                 hours=rng.randint(1, 168),
