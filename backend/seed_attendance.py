@@ -109,7 +109,7 @@ DECISION_TYPES = [
     ("info_only",      0.10),
 ]
 
-SOURCE_TYPES = ["gate_search", "walk-in", "paper_form"]
+ATTENDING_STATUS = ["yes", "no"]  # Valid values for currently_attending
 
 
 def gen_phone(i):
@@ -320,7 +320,7 @@ def seed():
                 decision_type=decision_type,
                 decision_type_other=None,
                 first_time=(decision_type == "accepted_jesus"),
-                currently_attending=rng.choice(["yes", "no", "sometimes"]),
+                currently_attending=rng.choice(ATTENDING_STATUS),
                 current_church=rng.choice(CHURCH_NAMES) if rng.random() > 0.4 else None,
                 wants_church_referral=(decision_type == "referral"),
                 referral_area=rng.choice(["Surulere", "Ikeja", "Lekki"]) if decision_type == "referral" else None,
