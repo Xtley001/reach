@@ -21,8 +21,8 @@ from backend.models import (
 p = argparse.ArgumentParser()
 p.add_argument("--email", default=os.environ.get("SEED_ADMIN_EMAIL"))
 p.add_argument("--phone", default=os.environ.get("SEED_ADMIN_PHONE"))
-p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "Living Faith Outreach"))
-p.add_argument("--count", type=int, default=1100, help="Number of contacts to seed (default 1100)")
+p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "The Standing Church"))
+p.add_argument("--count", type=int, default=100, help="Number of contacts to seed (default 100)")
 args = p.parse_args()
 
 if not args.email or not args.phone:
@@ -237,7 +237,7 @@ def seed():
         if not campaign:
             campaign = Campaign(
                 organisation_id=org.id,
-                name="Lagos Miracle Crusade 2026",
+                name="Times of Refreshing 2026",
                 target_count=args.count,
                 programme_date=datetime.now(timezone.utc) + timedelta(days=14),
                 venue="Teslim Balogun Stadium, Surulere",
@@ -251,7 +251,7 @@ def seed():
         # Minister
         minister, created = upsert_user(
             db, org, None,
-            name="Pastor Emmanuel Abiodun",
+            name="Pastor Akintara",
             email=args.email,
             phone=e164(args.phone),
             role=UserRole.minister,

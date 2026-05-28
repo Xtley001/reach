@@ -1,14 +1,16 @@
 """
 REACH — Attendance & Decisions Seed Script
 ============================================
-Populates attendance records and decisions for event testing.
+Populates attendance records and decisions for The Standing Church event (Times of Refreshing 2026).
 
-Creates realistic data:
-  • 73 contacts from outreach who attended
-  • 300+ walk-in attendees
+Creates realistic data linked to seed_demo.py data:
+  • Pastor Akintara as the minister
+  • Volunteers from The Standing Church hubs
+  • 73% of seeded contacts as confirmed attendees
+  • Additional walk-in attendees
   • ~60% of attendees have decision cards filled
-  • Decision types: accepted_jesus, rededication, referral, info_only
-  • Various counsellors and volunteers handling decisions
+  • Decision types: salvation, rededication, prayer, healing, holy_spirit
+  • Various counsellors (hub leaders, pastor, registration team) handling decisions
 
 USAGE
 -----
@@ -17,6 +19,7 @@ USAGE
 NOTES
 -----
   • Must run AFTER seed_demo.py (needs contacts, campaign, volunteers)
+  • Linked to "The Standing Church" organisation and "Times of Refreshing 2026" campaign
   • Deterministic random seed for reproducibility
   • Safe to re-run; updates existing attendance records
 """
@@ -40,7 +43,7 @@ from backend.models import (
 p = argparse.ArgumentParser(description="Seed attendance & decisions.")
 p.add_argument("--email", default=os.environ.get("SEED_ADMIN_EMAIL"))
 p.add_argument("--phone", default=os.environ.get("SEED_ADMIN_PHONE"))
-p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "Living Faith Outreach"))
+p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "The Standing Church"))
 p.add_argument("--count", type=int, default=300, help="Number of walk-in attendees (default 300)")
 args = p.parse_args()
 
