@@ -471,6 +471,7 @@ button { font-family: var(--font-sans); cursor: pointer; }
   padding: 0 var(--space-3);
   transition: border-color 0.15s;
   outline: none;
+  box-sizing: border-box;
 }
 .field-textarea { height: auto; padding: var(--space-3); resize: vertical; min-height: 80px; }
 .field-select { appearance: none; cursor: pointer; }
@@ -628,6 +629,7 @@ button { font-family: var(--font-sans); cursor: pointer; }
   flex-direction: column;
   box-shadow: var(--shadow-md);
   animation: slideUp 0.2s ease;
+  box-sizing: border-box;
 }
 @keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
@@ -645,6 +647,8 @@ button { font-family: var(--font-sans); cursor: pointer; }
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-5);
+  box-sizing: border-box;
+  width: 100%;
 }
 .modal-close {
   width: 32px; height: 32px;

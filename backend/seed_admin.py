@@ -34,7 +34,7 @@ import argparse
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from backend.config import settings
-from backend.models import User, UserRole, UserStatus, Organisation, Campaign, Hub
+from backend.models import User, UserRole, UserStatus, Organisation, Campaign, Hub, CampaignStatus
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ def seed():
             campaign = Campaign(
                 organisation_id=org.id,
                 name="Admin Campaign",
-                status="active",
+                status=CampaignStatus.active,
             )
             db.add(campaign); db.commit(); db.refresh(campaign)
             print(f"  ✓  Created campaign: {campaign.name}")

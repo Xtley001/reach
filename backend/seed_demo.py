@@ -14,7 +14,7 @@ from backend.models import (
     Organisation, Campaign, Hub, User, Contact, ContactStatus,
     MessageTemplate, Logistics, FollowUpQueue,
     UserRole, UserStatus, ContactStatusCode, TransportStatus,
-    FollowUpQueueType, FollowUpStatus,
+    FollowUpQueueType, FollowUpStatus, CampaignStatus,
 )
 
 # ── Args ──────────────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ def seed():
                 target_count=args.count,
                 programme_date=datetime.now(timezone.utc) + timedelta(days=14),
                 venue="Teslim Balogun Stadium, Surulere",
-                status="active",
+                status=CampaignStatus.active,
             )
             db.add(campaign); db.commit(); db.refresh(campaign)
             print(f"  ✓  Campaign: {campaign.name}")
