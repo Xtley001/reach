@@ -126,7 +126,9 @@ def seed():
     db = Session()
     try:
         print(f"\n  REACH attendance & decisions seed\n")
-        print(f"  Target: 73 outreach contacts + {args.count} walk-ins\n")
+        print(f"  • 73% of outreach contacts as confirmed attendees")
+        print(f"  • 27% of outreach contacts as walk-ins")
+        print(f"  • {args.count} additional new walk-ins\n")
 
         # ── Fetch key entities ────────────────────────────────────────
         org = db.query(Organisation).filter(
@@ -153,17 +155,24 @@ def seed():
             return
 
         print(f"  ✓  Campaign: {campaign.name}")
-        print(f"  ✓  Volunteers available: {len(volunteers)}")
+        print(f"  ✓  Volunteers available: {len(volunteers)}\n")
 
-        # ── Attendance: 73 from outreach ──────────────────────────────
-        print(f"\n  Creating attendance records …\n")
-
-        contacts = db.query(Contact).filter(
+        # ── Get all contacts from outreach ──────────────────────────
+        print(f"  Creating attendance records …\n")
+        all_contacts = db.query(Contact).filter(
             Contact.campaign_id == campaign.id
-        ).limit(73).all()
+        ).all()
+        
+        # Randomize contacts
+        rng.shuffle(all_contacts)
+        
+        # Split: 73% confirmed, 27% walk-in
+        split_point = int(len(all_contacts) * 0.73)
+        confirmed_contacts = all_contacts[:split_point]
+        walkin_contacts = all_contacts[split_point:]
 
-        outreach_count = 0
-        for contact in contacts:
+        outreach_confirmed = 0
+        for contact in confirmed_contacts:
             existing = db.query(Attendance).filter(
                 Attendance.contact_id == contact.id
             ).first()
@@ -175,25 +184,34 @@ def seed():
                 organisation_id=org.id,
                 contact_id=contact.id,
                 checked_in_by=rng.choice(volunteers).id,
-                checked_in_at=datetime.now(timezone.utc) - timedelta(hours=rng.randint(0, 4)),
+                checked_in_at=datetime.now(timezone.utc) - timedelta(
+                    hours=rng.randint(0, 5),
+                    minutes=rng.randint(0, 59)
+                ),
                 is_walk_in=False,
-                source=rng.choice(SOURCE_TYPES[:2]),  # gate_search or paper_form
+                source=rng.choice(["gate_search", "paper_form"]),
                 how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
                 notes="Confirmed attendee from outreach" if rng.random() > 0.6 else None,
             )
             db.add(attendance)
-            outreach_count += 1
+            outreach_confirmed += 1
 
         db.commit()
-        print(f"  ✓  {outreach_count} outreach attendees recorded")
+        print(f"  ✓  {outreach_confirmed} confirmed outreach attendees")
 
-        # ── Attendance: Walk-ins (generative) ─────────────────────────
-        walkin_count = 0
-        for i in range(args.count):
+        # ── Attendance: 27% from contacts as walk-ins ────────────────
+        outreach_walkin = 0
+        for contact in walkin_contacts:
+            existing = db.query(Attendance).filter(
+                Attendance.contact_id == contact.id
+            ).first()
+            if existing:
+                continue
+
             attendance = Attendance(
                 campaign_id=campaign.id,
                 organisation_id=org.id,
-                contact_id=None,  # walk-ins don't have pre-contacts
+                contact_id=contact.id,
                 checked_in_by=rng.choice(volunteers).id,
                 checked_in_at=datetime.now(timezone.utc) - timedelta(
                     hours=rng.randint(1, 6),
@@ -202,18 +220,41 @@ def seed():
                 is_walk_in=True,
                 source="walk-in",
                 how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
-                notes="Walk-in attendee" if rng.random() > 0.8 else None,
+                notes=None,
             )
             db.add(attendance)
-            walkin_count += 1
-            if walkin_count % 100 == 0:
-                db.commit()
-                print(f"  –  {walkin_count}/{args.count} walk-ins …")
+            outreach_walkin += 1
 
         db.commit()
-        print(f"  ✓  {walkin_count} walk-in attendees recorded")
+        print(f"  ✓  {outreach_walkin} outreach contacts as walk-ins")
 
-        total_attendees = outreach_count + walkin_count
+        # ── Attendance: Additional new walk-ins ──────────────────────
+        new_walkin = 0
+        for i in range(args.count):
+            attendance = Attendance(
+                campaign_id=campaign.id,
+                organisation_id=org.id,
+                contact_id=None,  # completely new people
+                checked_in_by=rng.choice(volunteers).id,
+                checked_in_at=datetime.now(timezone.utc) - timedelta(
+                    hours=rng.randint(1, 6),
+                    minutes=rng.randint(0, 59)
+                ),
+                is_walk_in=True,
+                source="walk-in",
+                how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
+                notes=None,
+            )
+            db.add(attendance)
+            new_walkin += 1
+            if new_walkin % 100 == 0:
+                db.commit()
+                print(f"  –  {new_walkin}/{args.count} new walk-ins …")
+
+        db.commit()
+        print(f"  ✓  {new_walkin} new walk-in attendees")
+
+        total_attendees = outreach_confirmed + outreach_walkin + new_walkin
         print(f"\n  ✓  Total attendees: {total_attendees}")
 
         # ── Decisions: ~60% of all attendees ──────────────────────────
@@ -304,25 +345,27 @@ def seed():
         # ── Summary ───────────────────────────────────────────────────
         print(f"""
   ════════════════════════════════════════════════════════
-  ATTENDANCE & DECISIONS SEEDED
+  ATTENDANCE & DECISIONS SEEDED ✓
   ════════════════════════════════════════════════════════
 
-  Attendance:
-    • Outreach contacts:    {outreach_count}
-    • Walk-in attendees:    {walkin_count}
-    • Total:                {total_attendees}
+  Attendance Breakdown:
+    • Confirmed outreach:   {outreach_confirmed} (73%)
+    • Walk-in from contacts:{outreach_walkin} (27%)
+    • New walk-ins:         {new_walkin}
+    ────────────────────────────────
+    • TOTAL:                {total_attendees}
 
   Decisions:
     • Cards filled:         {decision_count}
     • Conversion rate:      {int(100 * decision_count / total_attendees)}%
 
-  Breakdown by type:
+  Decision Breakdown:
     • Accepted Jesus:       ~{int(decision_count * 0.45)}
     • Rededication:         ~{int(decision_count * 0.25)}
     • Church Referral:      ~{int(decision_count * 0.20)}
     • Information Only:     ~{int(decision_count * 0.10)}
 
-  Your dashboard is now fully populated.
+  Your dashboard is now fully populated for testing! 🎉
   ════════════════════════════════════════════════════════
 """)
 
