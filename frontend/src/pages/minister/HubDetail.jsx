@@ -4,10 +4,16 @@
  * Each volunteer card is clickable → MinisterVolunteerDetail.
  */
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { Spinner, StatusBadge } from '../../components/UI';
 
-export default function HubDetail({ hubId, onBack, onSelectVolunteer }) {
+export default function HubDetail({ hubId: propHubId, onBack, onSelectVolunteer }) {
+  const { hubId: paramHubId } = useParams();
+  const navigate = useNavigate();
+  const hubId = propHubId || paramHubId;
+  const handleBack = onBack || (() => navigate(-1));
+  const handleSelectVolunteer = onSelectVolunteer || ((volId) => navigate(`/minister/volunteers/${volId}`));
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -20,7 +26,7 @@ export default function HubDetail({ hubId, onBack, onSelectVolunteer }) {
   if (loading) return <div className="page" style={{ display:'flex', alignItems:'center', justifyContent:'center' }}><Spinner /></div>;
   if (!data)   return (
     <div className="page">
-      <button onClick={onBack} className="btn btn-outline" style={{ marginBottom:24 }}>← Back</button>
+      <button onClick={handleBack} className="btn btn-outline" style={{ marginBottom:24 }}>← Back</button>
       <p style={{ color:'var(--td)', fontSize:13 }}>Hub not found.</p>
     </div>
   );
@@ -30,7 +36,7 @@ export default function HubDetail({ hubId, onBack, onSelectVolunteer }) {
   return (
     <div className="page">
       <div className="page-header" style={{ paddingBottom:0 }}>
-        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20 }}>
+        <button onClick={handleBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20 }}>
           ← All Hubs
         </button>
       </div>
@@ -90,7 +96,7 @@ export default function HubDetail({ hubId, onBack, onSelectVolunteer }) {
           : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {data.volunteers.map(v => (
-                <VolunteerMiniCard key={v.id} v={v} onClick={() => onSelectVolunteer(v.id)} />
+                <VolunteerMiniCard key={v.id} v={v} onClick={() => handleSelectVolunteer(v.id)} />
               ))}
             </div>
           )
