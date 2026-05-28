@@ -198,6 +198,18 @@ export default function MinisterDashboard() {
             </div>
           )}
         </div>
+
+        {/* Quick Actions */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { label: '🚪 Take Attendance', path: '/attend' },
+            { label: '✝️ Log Decisions', path: '/decisions' },
+          ].map(a => (
+            <button key={a.label} className="btn btn-outline btn-sm" onClick={() => navigate(a.path)}>
+              {a.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* FIX-006: Inline invite modal — stays on dashboard, no navigation */}

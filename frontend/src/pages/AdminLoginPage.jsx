@@ -103,8 +103,9 @@ export default function AdminLoginPage() {
       setOtp('');
       toast(e.message || 'Invalid code', 'error');
       setTimeout(() => setOtpError(false), 800);
+    } finally {
+      setLoading(false); // always reset spinner
     }
-    setLoading(false);
   }
 
   function goBack() {

@@ -1,45 +1,100 @@
 /**
  * REACH — Decisions Entry
- * URL: /decisions  |  Decisions Team only
+ * URL: /decisions  |  Decisions Team, Hub Leader, Minister
+ *
+ * Decision Type is now MULTI-SELECT:
+ *   Someone can give their life to Christ AND receive the Holy Spirit in the
+ *   same encounter. Each checked type creates its own Decision record so that
+ *   stats, exports, and queries stay clean.
  */
 import { useState } from 'react';
 import { api } from '../lib/api';
 import { toast } from '../lib/toast';
 import { useAuth } from '../hooks/useAuth';
-import { DECISION_TYPE_OPTIONS, HOW_HEARD_OPTIONS, AGE_RANGE_OPTIONS } from '../lib/labels';
+import { HOW_HEARD_OPTIONS, AGE_RANGE_OPTIONS, DECISION_TYPE_OPTIONS } from '../lib/labels';
 
 const EMPTY_FORM = {
   name:'', phone_1:'', phone_2:'', whatsapp_number:'', email:'',
   area:'', nearest_landmark:'',
-  decision_type:'', decision_type_other:'', first_time:'', currently_attending:'',
-  current_church:'', wants_church_referral:'', referral_area:'',
+  decision_types: [],          // ← array now, replaces decision_type
+  decision_type_other:'',
+  first_time:'', currently_attending:'', current_church:'',
+  wants_church_referral:'', referral_area:'',
   age_range:'', gender:'', occupation:'', how_did_you_hear:'', brought_by:'', notes:'',
 };
 
 export default function DecisionsLayout() {
   const { user, logout } = useAuth();
-  const [form, setForm]     = useState(EMPTY_FORM);
+  const [form, setForm]       = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [bgOpen, setBgOpen]   = useState(false);
   const [count, setCount]     = useState(0);
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
+  // Toggle a decision type in/out of the array
+  function toggleType(value) {
+    setForm(f => {
+      const types = f.decision_types.includes(value)
+        ? f.decision_types.filter(t => t !== value)
+        : [...f.decision_types, value];
+      return { ...f, decision_types: types };
+    });
+  }
+
   async function handleSubmit() {
-    if (!form.name || !form.phone_1 || !form.decision_type) {
-      toast('Name, phone and decision type are required', 'error'); return;
+    if (!form.name.trim()) { toast('Full name is required', 'error'); return; }
+    if (!form.phone_1.trim()) { toast('Phone number is required', 'error'); return; }
+    if (form.decision_types.length === 0) {
+      toast('Select at least one decision type', 'error'); return;
     }
+    if (form.decision_types.includes('other') && !form.decision_type_other.trim()) {
+      toast('Please specify the "other" decision', 'error'); return;
+    }
+
     setLoading(true);
     try {
-      await api.createDecision({
-        ...form,
-        first_time: form.first_time === 'true' ? true : form.first_time === 'false' ? false : null,
+      // Submit one decision record per selected type
+      const shared = {
+        name:             form.name.trim(),
+        phone_1:          form.phone_1.trim(),
+        phone_2:          form.phone_2.trim() || undefined,
+        whatsapp_number:  form.whatsapp_number.trim() || undefined,
+        email:            form.email.trim() || undefined,
+        area:             form.area.trim() || undefined,
+        nearest_landmark: form.nearest_landmark.trim() || undefined,
+        first_time:       form.first_time === 'true' ? true : form.first_time === 'false' ? false : null,
+        currently_attending: form.currently_attending || null,
+        current_church:   form.current_church.trim() || undefined,
         wants_church_referral: form.wants_church_referral === 'true' ? true : form.wants_church_referral === 'false' ? false : null,
-        source: 'real_time',
-      });
-      toast('Saved ✓', 'success');
+        referral_area:    form.referral_area.trim() || undefined,
+        age_range:        form.age_range || undefined,
+        gender:           form.gender || undefined,
+        occupation:       form.occupation.trim() || undefined,
+        how_did_you_hear: form.how_did_you_hear || undefined,
+        brought_by:       form.brought_by.trim() || undefined,
+        notes:            form.notes.trim() || undefined,
+        source:           'real_time',
+      };
+
+      // Fan out — one record per decision type
+      await Promise.all(
+        form.decision_types.map(dt =>
+          api.createDecision({
+            ...shared,
+            decision_type: dt,
+            decision_type_other: dt === 'other' ? form.decision_type_other.trim() : undefined,
+          })
+        )
+      );
+
+      const plural = form.decision_types.length > 1
+        ? `${form.decision_types.length} decisions`
+        : '1 decision';
+      toast(`Saved — ${plural} recorded ✓`, 'success');
       setForm(EMPTY_FORM);
-      setCount(n => n + 1);
+      setBgOpen(false);
+      setCount(n => n + form.decision_types.length);
     } catch (e) {
       toast(e.message || 'Failed to save', 'error');
     }
@@ -72,7 +127,8 @@ export default function DecisionsLayout() {
             key={v}
             onClick={() => set(k, v)}
             style={{
-              height: 40, flex: 1, border: `1px solid ${form[k] === v ? 'var(--accent)' : 'var(--border)'}`,
+              height: 40, flex: 1,
+              border: `1px solid ${form[k] === v ? 'var(--accent)' : 'var(--border)'}`,
               background: form[k] === v ? 'var(--accent)' : 'transparent',
               color: form[k] === v ? 'var(--accent-fg)' : 'var(--text-2)',
               borderRadius: 'var(--radius)', fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer',
@@ -109,13 +165,82 @@ export default function DecisionsLayout() {
           <Field label="Nearest Landmark" k="nearest_landmark" hint="e.g. By Access Bank, Surulere" />
         </div>
 
-        {/* Section 2: Decision */}
+        {/* Section 2: Decision — MULTI-SELECT CHECKBOXES */}
         <div className="form-section">
           <div className="form-section-title">Decision</div>
-          <SelectField label="Decision Type" k="decision_type" req options={DECISION_TYPE_OPTIONS} />
-          {form.decision_type === 'other' && (
-            <Field label="Specify" k="decision_type_other" req />
+
+          {/* Helper note */}
+          <div style={{
+            fontSize: 11, color: 'var(--text-3)', marginBottom: 12,
+            background: 'var(--bg-3)', borderRadius: 'var(--radius-sm)',
+            padding: '8px 12px', lineHeight: 1.5,
+          }}>
+            Select all that apply — someone can give their life to Christ <em>and</em> receive the Holy Spirit in the same encounter.
+          </div>
+
+          {/* Checkbox grid */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {DECISION_TYPE_OPTIONS.map(opt => {
+              const checked = form.decision_types.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => toggleType(opt.value)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 14px',
+                    background: checked ? 'var(--accent)' : 'var(--bg-2)',
+                    border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius)',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s, border-color 0.15s',
+                    textAlign: 'left',
+                    width: '100%',
+                  }}
+                >
+                  {/* Checkbox indicator */}
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                    background: checked ? 'var(--accent-fg)' : 'transparent',
+                    border: `2px solid ${checked ? 'var(--accent-fg)' : 'var(--border-2)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {checked && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke={checked ? 'var(--accent)' : 'transparent'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <span style={{
+                    fontSize: 13, fontWeight: checked ? 600 : 400,
+                    color: checked ? 'var(--accent-fg)' : 'var(--text)',
+                    fontFamily: 'var(--font-sans)',
+                  }}>
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Show "Other — specify" field only when Other is checked */}
+          {form.decision_types.includes('other') && (
+            <Field label="Specify (Other)" k="decision_type_other" req />
           )}
+
+          {/* Summary of selection */}
+          {form.decision_types.length > 0 && (
+            <div style={{
+              fontSize: 11, color: 'var(--green)', fontWeight: 600,
+              padding: '6px 12px', background: 'var(--badge-green-bg)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: 8,
+            }}>
+              {form.decision_types.length} decision type{form.decision_types.length > 1 ? 's' : ''} selected →{' '}
+              {form.decision_types.length} record{form.decision_types.length > 1 ? 's' : ''} will be saved
+            </div>
+          )}
+
           <YesNoField label="First time making this decision?" k="first_time" req />
           <YesNoField
             label="Currently attending a church?"
@@ -139,7 +264,7 @@ export default function DecisionsLayout() {
 
         {/* Section 3: Background — collapsible */}
         <div className="form-section collapsible-section">
-          <div className="form-section-title" onClick={() => setBgOpen(o => !o)}>
+          <div className="form-section-title" onClick={() => setBgOpen(o => !o)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Background</span>
             <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{bgOpen ? '▲ hide' : '▼ fill if time allows'}</span>
           </div>
@@ -160,7 +285,6 @@ export default function DecisionsLayout() {
       </div>
 
       <div className="form-sticky-footer">
-        {/* P2-3.6: Also reset collapsible state on clear */}
         <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => { setForm(EMPTY_FORM); setBgOpen(false); }}>Clear</button>
         <button
           className="btn btn-primary"
@@ -168,7 +292,12 @@ export default function DecisionsLayout() {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : 'Save Decision'}
+          {loading
+            ? <div className="spinner" style={{ width: 16, height: 16 }} />
+            : form.decision_types.length > 1
+              ? `Save ${form.decision_types.length} Decisions`
+              : 'Save Decision'
+          }
         </button>
       </div>
     </div>
