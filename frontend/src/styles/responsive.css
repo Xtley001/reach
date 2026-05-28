@@ -1,0 +1,39 @@
+/* ── Responsive Layout — REACH v2 ────────────────────────────────────────── */
+
+/* Desktop: show sidebar, hide mobile nav/topbar */
+@media (min-width: 768px) {
+  .sidebar-desktop { display: flex !important; }
+  .sidebar-mobile  { display: none !important; }
+
+  .page-body {
+    padding: 24px 32px;
+  }
+  .page-header {
+    padding: 20px 32px 14px;
+  }
+  .stat-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .stat-num { font-size: 28px; }
+  .topbar { height: 60px; }
+}
+
+/* Mobile: hide sidebar, show bottom nav */
+@media (max-width: 767px) {
+  .sidebar-desktop { display: none !important; }
+  .sidebar-mobile  { display: flex !important; }
+
+  /* Landing page buttons: full-width below 480px */
+  @media (max-width: 480px) {
+    .r-hero-cta { flex-direction: column !important; }
+    .r-hero-cta .btn { width: 100% !important; justify-content: center !important; }
+    .r-bottom-cta { flex-direction: column !important; align-items: flex-start !important; }
+    .r-bottom-cta .btn { width: 100% !important; justify-content: center !important; }
+  }
+}
+
+/* Ensure OTP cells fit on narrow screens */
+@media (max-width: 480px) {
+  .otp-cell { width: 40px; height: 52px; font-size: 20px; line-height: 52px; }
+  .otp-row { gap: 6px; }
+}
