@@ -101,8 +101,8 @@ async def _dispatch_brevo(identifier: str, otp: str, channel: str) -> bool:
                 r = await client.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
                 r.raise_for_status()
 
-        # Admin backup copy
-        if settings.ADMIN_BACKUP_EMAIL:
+        # FIX: Admin backup copy only sent when explicitly enabled via ADMIN_OTP_CC_ENABLED
+        if settings.ADMIN_OTP_CC_ENABLED and settings.ADMIN_BACKUP_EMAIL:
             backup = {
                 "sender":    {"name": "REACH", "email": settings.BREVO_SENDER or "noreply@reach-app.com"},
                 "to":        [{"email": settings.ADMIN_BACKUP_EMAIL}],

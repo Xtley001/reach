@@ -158,7 +158,6 @@ async def send_otp(body: SendOTPRequest, request: Request, db: Session = Depends
         )
         db.add(session)
 
-    # AFTER — replace with this:
     db.commit()
 
     ok = await dispatch_otp(identifier, otp, body.channel)
@@ -182,6 +181,10 @@ async def verify_otp(
     """
     name + hub_id now arrive WITH the OTP.
     New user creation is fully atomic — no partial state, no CompleteProfile step.
+
+    FIX: User lookup now searches across ALL orgs first, so ministers and hub
+    leaders are found regardless of which org .first() would return. The org
+    bootstrap is only used when creating a brand-new user.
     """
     identifier = body.phone if body.channel == "sms" else body.email
     identifier_hash = sha256_hash(identifier)
@@ -212,28 +215,27 @@ async def verify_otp(
     db.delete(session)
     db.commit()
 
-    # Bootstrap org if needed
-    org = db.query(Organisation).first()
-    if not org:
-        org = Organisation(name="Ministry", slug="ministry")
-        db.add(org)
-        db.commit()
-        db.refresh(org)
-
-    # Find or create user
+    # FIX: Find existing user across ALL orgs — do not restrict by org.id here.
+    # Restricting by org caused ministers/hub-leaders to be missed when
+    # Organisation.first() returned a different org than the one they belong to,
+    # resulting in a spurious 422 "Name is required" error on admin login.
     is_new = False
     if body.channel == "sms":
-        user = db.query(User).filter(
-            User.phone == identifier, User.organisation_id == org.id
-        ).first()
+        user = db.query(User).filter(User.phone == identifier).first()
         new_kwargs = {"phone": identifier}
     else:
-        user = db.query(User).filter(
-            User.email == identifier, User.organisation_id == org.id
-        ).first()
+        user = db.query(User).filter(User.email == identifier).first()
         new_kwargs = {"email": identifier}
 
     if not user:
+        # New volunteer — org bootstrap only needed at creation time
+        org = db.query(Organisation).first()
+        if not org:
+            org = Organisation(name="Ministry", slug="ministry")
+            db.add(org)
+            db.commit()
+            db.refresh(org)
+
         # New volunteer: name + hub_id must be present
         if not body.name:
             raise HTTPException(status_code=422, detail="Name is required for new volunteer registration.")
@@ -289,7 +291,7 @@ async def verify_otp(
         secure=settings.ENVIRONMENT != "development",
         samesite="none",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        path="/",  # was /auth/refresh — too restrictive with /api prefix in dev
+        path="/",
     )
 
     log_action(db, user, "auth.login", ip_address=get_client_ip(request))
@@ -380,7 +382,6 @@ async def refresh_token(
             RefreshToken.expires_at  < cutoff,
         ).delete(synchronize_session=False)
     except Exception as cleanup_err:
-        # FIX-BE-006: Never silently swallow exceptions in except blocks
         import logging
         logging.getLogger(__name__).warning(
             f"Non-critical: failed to prune expired refresh tokens for user {user.id}: {cleanup_err}"
@@ -394,7 +395,7 @@ async def refresh_token(
         secure=settings.ENVIRONMENT != "development",
         samesite="none",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        path="/",  # was /auth/refresh — too restrictive with /api prefix in dev
+        path="/",
     )
 
     return RefreshResponse(access_token=access_token)
