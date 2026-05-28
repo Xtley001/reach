@@ -4,7 +4,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import argparse
 import random
 from datetime import datetime, timedelta, timezone
-from itertools import product
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -12,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from backend.config import settings
 from backend.models import (
     Organisation, Campaign, Hub, User, Contact, ContactStatus,
-    MessageTemplate, Logistics, FollowUpQueue,
+    MessageTemplate, MessageSend, Logistics, FollowUpQueue,
     UserRole, UserStatus, ContactStatusCode, TransportStatus,
     FollowUpQueueType, FollowUpStatus, CampaignStatus,
 )
@@ -50,14 +49,13 @@ FIRST_NAMES = [
     "Yemi","Oluwaseun","Maryam","Obinna","Titilayo","Kanyinsola","Nnamdi",
     "Oluwatobi","Imaobong","Chinyelu","Rufus","Christiana","Olumide",
     "Adenike","Ifunanya","Kazeem","Grace","Chibundo","Temi","Oluwafemi",
-    "Priscilla","Victor","Blessing","Miracle","Deborah","Zainab","Hafsat",
-    "Bashir","Ibrahim","Lukman","Mariam","Rahmat","Saliu","Taiwo",
+    "Priscilla","Victor","Miracle","Deborah","Zainab","Hafsat",
+    "Bashir","Ibrahim","Lukman","Mariam","Rahmat","Saliu",
     "Ayomide","Bamidele","Celestina","Damola","Ebunoluwa","Fola","Gbola",
     "Hezekiah","Ibukun","Joke","Kunle","Lola","Moyo","Nike","Olu",
     "Peter","Queen","Richard","Samuel","Tokunbo","Uche","Vivian","Wale",
-    "Xavier","Yemi","Zainab","Ade","Bola","Chidi","Dupe","Eze",
     "Faith","Glory","Hope","Ife","Joy","Kola","Love","Mike","Nneka",
-    "Ola","Pele","Ria","Sola","Tobi","Uma","Voke","Wura","Xola","Yinka",
+    "Ola","Sola","Tobi","Voke","Wura","Yinka",
 ]
 
 LAST_NAMES = [
@@ -66,16 +64,14 @@ LAST_NAMES = [
     "Uchenna","Adesanya","Egwu","Obi","Badmus","Olawale","Igwe","Lawal",
     "Adegoke","Nwofor","Fadahunsi","Okeke","Bakare","Akin","Onwudiwe",
     "Nzekwe","Ajayi","Oduya","Bello","Abdullahi","Oyelaran","Obiechina",
-    "Garba","Olutayo","Bankole","Eze","Oni","Nwogu","Olatunji","Obiora",
-    "Aliyu","Ogunwale","Nwofor","Adeyemi","Okonkwo","Nwachukwu","Bakare",
-    "Oguike","Rasheed","Obiora","Okafor","Folasade","Obasi","Oladele",
-    "Adeyemi","Abiodun","Musa","Ugwu","Afolabi","Bello","Okonkwo","Eze",
-    "Akindele","Effiong","Obi","Abiodun","Nweke","Adegoke","Olatunji",
-    "Okafor","Lawal","Okeke","Ogundele","Fashola","Olawuyi","Odunbaku",
-    "Adekunle","Oluwole","Babatunde","Adeniran","Oluwole","Adeoye",
-    "Adeola","Babajide","Adesola","Adetola","Adewumi","Adetunji",
-    "Agboola","Akerele","Akinsanya","Akinwale","Akinwunmi","Alabi",
-    "Alao","Alatise","Alebiosu","Alese","Aluko","Amadi","Amara",
+    "Garba","Olutayo","Bankole","Oni","Nwogu","Olatunji","Obiora",
+    "Aliyu","Ogunwale","Nwachukwu","Oguike","Rasheed","Folasade",
+    "Obasi","Oladele","Abiodun","Ugwu","Afolabi","Akindele","Effiong",
+    "Nweke","Ogundele","Fashola","Olawuyi","Odunbaku","Adekunle",
+    "Oluwole","Babatunde","Adeniran","Adeoye","Adeola","Babajide",
+    "Adesola","Adetola","Adewumi","Adetunji","Agboola","Akerele",
+    "Akinsanya","Akinwale","Akinwunmi","Alabi","Alao","Alatise",
+    "Alebiosu","Alese","Aluko","Amadi","Amara",
 ]
 
 LOCATIONS = [
@@ -99,23 +95,52 @@ LOCATIONS = [
     "Lekki Phase 1","Lekki Phase 2","Victoria Island","Ajah, Lagos",
     "Sangotedo","Awoyaya","Igbo Efon","Chevron Drive","Jakande Estate",
     "Eti-Osa","Lakepoint, Lekki","Thomas Estate, Ajah","Ajah Roundabout",
-    "Lekki Conservation","Ilasan, Lekki","Ikate, Lekki","Osapa, Lekki",
+    "Ilasan, Lekki","Ikate, Lekki","Osapa, Lekki",
     # Isolo / Festac
     "Isolo, Lagos","Ejigbo, Lagos","Ikotun, Lagos","Egbeda, Lagos",
     "Idimu, Lagos","Festac Town","Mile 2, Lagos","Amuwo-Odofin",
-    "Satellite Town","Badagry Expressway","Orile, Lagos",
-    # Outskirts / Ogun
-    "Ifo, Ogun","Sango, Ogun","Otta, Ogun","Sagamu, Ogun",
-    "Abule Egba","Alakuko","Meiran, Lagos","Agbado, Lagos",
-    "Dopemu, Lagos","Ipaja, Lagos","Abule Ado",
+    "Satellite Town","Orile, Lagos",
+    # Outskirts
+    "Ifo, Ogun","Sango, Ogun","Otta, Ogun","Abule Egba","Alakuko",
+    "Meiran, Lagos","Agbado, Lagos","Dopemu, Lagos","Ipaja, Lagos",
 ]
 
 HUBS = [
-    {"name": "Surulere Hub",    "zone": "Lagos Island",   "tag": "sur"},
-    {"name": "Ikeja Hub",       "zone": "Lagos Mainland", "tag": "ikj"},
-    {"name": "Lekki Hub",       "zone": "Lekki-Ajah",    "tag": "lkk"},
-    {"name": "Oshodi Hub",      "zone": "Oshodi-Isolo",  "tag": "osh"},
-    {"name": "Festac Hub",      "zone": "Amuwo-Festac",  "tag": "fst"},
+    {
+        "name": "Surulere Hub",
+        "zone": "Lagos Island",
+        "tag":  "sur",
+        "location":    "Bode Thomas / Shitta axis, Surulere",
+        "description": "Covers Surulere, Orile, Iganmu and Eric Moore.",
+    },
+    {
+        "name": "Ikeja Hub",
+        "zone": "Lagos Mainland",
+        "tag":  "ikj",
+        "location":    "Allen Avenue / Oregun, Ikeja",
+        "description": "Covers Ikeja GRA, Agidingbi, Omole, Ojodu and Berger.",
+    },
+    {
+        "name": "Lekki Hub",
+        "zone": "Lekki-Ajah",
+        "tag":  "lkk",
+        "location":    "Lekki Phase 1 roundabout",
+        "description": "Covers Lekki Phase 1 & 2, Ajah, Sangotedo and Chevron.",
+    },
+    {
+        "name": "Oshodi Hub",
+        "zone": "Oshodi-Isolo",
+        "tag":  "osh",
+        "location":    "Oshodi underbridge / Mafoluku",
+        "description": "Covers Oshodi, Mushin, Isolo and Ejigbo.",
+    },
+    {
+        "name": "Festac Hub",
+        "zone": "Amuwo-Festac",
+        "tag":  "fst",
+        "location":    "Festac Town 2nd Avenue",
+        "description": "Covers Festac, Amuwo-Odofin, Mile 2 and Satellite Town.",
+    },
 ]
 
 HUB_LEADERS = [
@@ -127,26 +152,26 @@ HUB_LEADERS = [
 ]
 
 VOLUNTEERS = [
-    {"name": "Chukwuemeka Eze",       "hub": 0, "tag": "v01"},
-    {"name": "Ngozi Obi",             "hub": 0, "tag": "v02"},
-    {"name": "Seun Afolabi",          "hub": 0, "tag": "v03"},
-    {"name": "Amara Okonkwo",         "hub": 0, "tag": "v04"},
-    {"name": "Tunde Babatunde",       "hub": 1, "tag": "v05"},
-    {"name": "Yetunde Adeyemo",       "hub": 1, "tag": "v06"},
-    {"name": "Ifeanyi Chibuike",      "hub": 1, "tag": "v07"},
-    {"name": "Kemi Olatunji",         "hub": 1, "tag": "v08"},
-    {"name": "Obinna Nwofor",         "hub": 2, "tag": "v09"},
-    {"name": "Adaeze Nwachukwu",      "hub": 2, "tag": "v10"},
-    {"name": "Damilola Ogundimu",     "hub": 2, "tag": "v11"},
-    {"name": "Chiamaka Uchenna",      "hub": 2, "tag": "v12"},
-    {"name": "Olusegun Badmus",       "hub": 3, "tag": "v13"},
-    {"name": "Patience Egwu",         "hub": 3, "tag": "v14"},
-    {"name": "Rasheed Aliyu",         "hub": 3, "tag": "v15"},
-    {"name": "Ifeoma Nzekwe",         "hub": 3, "tag": "v16"},
-    {"name": "Chukwudi Nwofor",       "hub": 4, "tag": "v17"},
-    {"name": "Toyin Bello",           "hub": 4, "tag": "v18"},
-    {"name": "Maryam Musa",           "hub": 4, "tag": "v19"},
-    {"name": "Ikenna Eze",            "hub": 4, "tag": "v20"},
+    {"name": "Chukwuemeka Eze",      "hub": 0, "tag": "v01", "phone": "+2348021110001"},
+    {"name": "Ngozi Obi",            "hub": 0, "tag": "v02", "phone": "+2348021110002"},
+    {"name": "Seun Afolabi",         "hub": 0, "tag": "v03", "phone": "+2348021110003"},
+    {"name": "Amara Okonkwo",        "hub": 0, "tag": "v04", "phone": "+2348021110004"},
+    {"name": "Tunde Babatunde",      "hub": 1, "tag": "v05", "phone": "+2348021110005"},
+    {"name": "Yetunde Adeyemo",      "hub": 1, "tag": "v06", "phone": "+2348021110006"},
+    {"name": "Ifeanyi Chibuike",     "hub": 1, "tag": "v07", "phone": "+2348021110007"},
+    {"name": "Kemi Olatunji",        "hub": 1, "tag": "v08", "phone": "+2348021110008"},
+    {"name": "Obinna Nwofor",        "hub": 2, "tag": "v09", "phone": "+2348021110009"},
+    {"name": "Adaeze Nwachukwu",     "hub": 2, "tag": "v10", "phone": "+2348021110010"},
+    {"name": "Damilola Ogundimu",    "hub": 2, "tag": "v11", "phone": "+2348021110011"},
+    {"name": "Chiamaka Uchenna",     "hub": 2, "tag": "v12", "phone": "+2348021110012"},
+    {"name": "Olusegun Badmus",      "hub": 3, "tag": "v13", "phone": "+2348021110013"},
+    {"name": "Patience Egwu",        "hub": 3, "tag": "v14", "phone": "+2348021110014"},
+    {"name": "Rasheed Aliyu",        "hub": 3, "tag": "v15", "phone": "+2348021110015"},
+    {"name": "Ifeoma Nzekwe",        "hub": 3, "tag": "v16", "phone": "+2348021110016"},
+    {"name": "Chukwudi Nwofor",      "hub": 4, "tag": "v17", "phone": "+2348021110017"},
+    {"name": "Toyin Bello",          "hub": 4, "tag": "v18", "phone": "+2348021110018"},
+    {"name": "Maryam Musa",          "hub": 4, "tag": "v19", "phone": "+2348021110019"},
+    {"name": "Ikenna Eze",           "hub": 4, "tag": "v20", "phone": "+2348021110020"},
 ]
 
 STATUS_WEIGHTS = [
@@ -159,6 +184,33 @@ STATUS_WEIGHTS = [
     (ContactStatusCode.unreachable,      3),
 ]
 STATUS_POOL = [s for s, w in STATUS_WEIGHTS for _ in range(w)]
+
+STATUS_NOTES = {
+    ContactStatusCode.coming:           [
+        "Confirmed over the phone", "Very excited to come",
+        "Said she'll bring her sister", "Confirmed — will bring 2 friends", "",
+    ],
+    ContactStatusCode.undecided:        [
+        "Said he needs to check with his wife", "Will let us know by Friday",
+        "Seems interested but not sure about transport", "",
+    ],
+    ContactStatusCode.no_answer:        [
+        "Tried twice, no answer", "Phone rings out", "Tried morning and evening", "",
+    ],
+    ContactStatusCode.needs_transport:  [
+        "No car, lives far from venue", "Elderly, needs bus",
+        "Group of 3 needing pickup", "Far from any bus route",
+    ],
+    ContactStatusCode.message_sent:     [
+        "WhatsApp message sent", "SMS delivered", "Sent invite message",
+    ],
+    ContactStatusCode.not_coming:       [
+        "Has a work commitment that day", "Travelling that weekend", "",
+    ],
+    ContactStatusCode.unreachable:      [
+        "Number not going through", "Phone switched off repeatedly", "",
+    ],
+}
 
 NOTES_POOL = [
     "Very interested — met at bus stop",
@@ -175,8 +227,7 @@ NOTES_POOL = [
     "Very warm, gave us water",
     "Three-time no-answer, try evening",
     "Left a note with the gateman",
-    "",  # many contacts have no notes
-    "", "", "",  # weight towards no notes
+    "", "", "", "",  # weight towards no notes
 ]
 
 TRANSPORT_NOTES = [
@@ -185,6 +236,18 @@ TRANSPORT_NOTES = [
     "Requested bus from {loc} junction",
     "Group of 3 from {loc}",
     "Lives far — needs transport from {loc}",
+]
+
+HOW_HEARD_POOL = [
+    "Friend invited me",
+    "Saw the flyer",
+    "WhatsApp message",
+    "Family member",
+    "Passed by the venue",
+    "Social media post",
+    "Church announcement",
+    "Market outreach team",
+    None, None, None,
 ]
 
 
@@ -196,7 +259,16 @@ def gen_phone(i):
     return f"+234{px}{suffix}"
 
 
-def upsert_user(db, org, hub, name, email, phone, role):
+def gen_second_phone(i):
+    """Slightly different deterministic phone for second_phone field."""
+    prefixes = ["802","805","810","901","907"]
+    px = prefixes[i % len(prefixes)]
+    suffix = str((i * 6271 + 20000000) % 10000000).zfill(7)
+    return f"+234{px}{suffix}"
+
+
+def upsert_user(db, org, hub, name, email, phone, role,
+                is_reg=False, is_dec=False):
     q = db.query(User).filter(User.organisation_id == org.id)
     u = (q.filter(User.email == email).first() if email
          else q.filter(User.phone == phone).first() if phone else None)
@@ -204,6 +276,8 @@ def upsert_user(db, org, hub, name, email, phone, role):
         u.role   = role
         u.status = UserStatus.active
         u.hub_id = hub.id if hub else u.hub_id
+        u.is_registration_team = is_reg
+        u.is_decisions_team    = is_dec
         db.commit()
         return u, False
     u = User(
@@ -211,6 +285,8 @@ def upsert_user(db, org, hub, name, email, phone, role):
         hub_id=hub.id if hub else None,
         name=name, email=email, phone=phone,
         role=role, status=UserStatus.active,
+        is_registration_team=is_reg,
+        is_decisions_team=is_dec,
     )
     db.add(u); db.commit(); db.refresh(u)
     return u, True
@@ -221,18 +297,21 @@ def upsert_user(db, org, hub, name, email, phone, role):
 def seed():
     db = Session()
     try:
-        print(f"\n  REACH demo seed — target: {args.count} contacts\n")
+        print(f"\n  REACH demo seed — org: {args.org} | target: {args.count} contacts\n")
 
-        # Org
+        # ── Org ───────────────────────────────────────────────────────
         org = db.query(Organisation).filter(Organisation.name == args.org).first()
         if not org:
-            org = Organisation(name=args.org, slug=args.org.lower().replace(" ", "-"))
+            org = Organisation(
+                name=args.org,
+                slug=args.org.lower().replace(" ", "-"),
+            )
             db.add(org); db.commit(); db.refresh(org)
             print(f"  ✓  Org:      {org.name}")
         else:
             print(f"  –  Org:      {org.name}")
 
-        # Campaign
+        # ── Campaign ──────────────────────────────────────────────────
         campaign = db.query(Campaign).filter(Campaign.organisation_id == org.id).first()
         if not campaign:
             campaign = Campaign(
@@ -248,17 +327,17 @@ def seed():
         else:
             print(f"  –  Campaign: {campaign.name}")
 
-        # Minister
+        # ── Minister ──────────────────────────────────────────────────
         minister, created = upsert_user(
             db, org, None,
-            name="Pastor Akintara",
+            name="Pastor Tara",
             email=args.email,
             phone=e164(args.phone),
             role=UserRole.minister,
         )
         print(f"  {'✓' if created else '–'}  Minister: {minister.name}")
 
-        # Hubs + Hub Leaders
+        # ── Hubs + Hub Leaders ────────────────────────────────────────
         hub_objs = []
         hl_objs  = []
         for i, hdef in enumerate(HUBS):
@@ -266,11 +345,22 @@ def seed():
                 Hub.organisation_id == org.id, Hub.name == hdef["name"]
             ).first()
             if not hub:
-                hub = Hub(organisation_id=org.id, campaign_id=campaign.id,
-                          name=hdef["name"], zone=hdef["zone"])
+                hub = Hub(
+                    organisation_id=org.id,
+                    campaign_id=campaign.id,
+                    name=hdef["name"],
+                    zone=hdef["zone"],
+                    location=hdef["location"],
+                    description=hdef["description"],
+                )
                 db.add(hub); db.commit(); db.refresh(hub)
                 print(f"  ✓  Hub:      {hub.name}")
             else:
+                # Update location/description if blank
+                if not hub.location:
+                    hub.location    = hdef["location"]
+                    hub.description = hdef["description"]
+                    db.commit()
                 print(f"  –  Hub:      {hub.name}")
             hub_objs.append(hub)
 
@@ -281,28 +371,36 @@ def seed():
                 email=sub(hdef["tag"]),
                 phone=hldef["phone"],
                 role=UserRole.hub_leader,
+                is_reg=True,
+                is_dec=True,
             )
             print(f"  {'✓' if created else '–'}  HL:       {hl.name}")
             hl_objs.append(hl)
 
-        # Volunteers
+        # ── Volunteers ────────────────────────────────────────────────
         vol_objs = []
         for vdef in VOLUNTEERS:
             v, created = upsert_user(
                 db, org, hub_objs[vdef["hub"]],
                 name=vdef["name"],
                 email=sub(vdef["tag"]),
-                phone=None,
+                phone=vdef["phone"],
                 role=UserRole.volunteer,
+                is_reg=True,
             )
+            # Stamp last_active_at so they don't look dormant
+            v.last_active_at = datetime.now(timezone.utc) - timedelta(
+                hours=rng.randint(1, 72)
+            )
+            db.commit()
             print(f"  {'✓' if created else '–'}  Vol:      {v.name}")
             vol_objs.append(v)
 
-        # Templates
+        # ── Templates ─────────────────────────────────────────────────
         tmpl_defs = [
             ("Initial Invite",
              "Hi [Name]! 🙏 It was great meeting you at [Location]. "
-             "We'd love for you to join us at the Lagos Miracle Crusade this Saturday at "
+             "We'd love for you to join us at the Times of Refreshing 2026 this Saturday at "
              "Teslim Balogun Stadium, Surulere. It starts at 4pm — can we count you in?"),
             ("Follow-Up Reminder",
              "Hello [Name], just a reminder about the crusade this Saturday! "
@@ -312,7 +410,7 @@ def seed():
              "Hi [Name]! Your transport from [Location] is confirmed. "
              "Bus picks up by 3pm Saturday — please be ready. Feel free to bring a friend! 🚌"),
             ("Day-Before Reminder",
-             "Tomorrow is the big day, [Name]! 🎉 The Lagos Miracle Crusade is at "
+             "Tomorrow is the big day, [Name]! 🎉 The Times of Refreshing 2026 is at "
              "Teslim Balogun Stadium, 4pm. We met you at [Location] and can't wait to "
              "see you there. God bless you!"),
         ]
@@ -324,18 +422,20 @@ def seed():
             ).first()
             if not tmpl:
                 tmpl = MessageTemplate(
-                    campaign_id=campaign.id, organisation_id=org.id,
-                    label=label, body=body,
-                    created_by=minister.id, is_active=True,
+                    campaign_id=campaign.id,
+                    organisation_id=org.id,
+                    label=label,
+                    body=body,
+                    created_by=minister.id,
+                    is_active=True,
                 )
                 db.add(tmpl); db.commit(); db.refresh(tmpl)
             tmpl_objs.append(tmpl)
         print(f"  ✓  {len(tmpl_objs)} message templates")
 
-        # Contacts — generate args.count
+        # ── Contacts ──────────────────────────────────────────────────
         print(f"\n  Generating {args.count} contacts …")
 
-        # Check how many already exist
         existing_count = db.query(Contact).filter(
             Contact.campaign_id == campaign.id
         ).count()
@@ -345,13 +445,17 @@ def seed():
         else:
             print(f"  –  {existing_count} exist, creating {to_create} more …")
 
+        # Randomised per-volunteer load weights so no two volunteers
+        # end up with the same contact count
+        vol_weights = [rng.randint(3, 10) for _ in vol_objs]
+
         batch      = []
         created_c  = 0
-        transport_c= 0
-        phone_set  = {r[0] for r in db.query(Contact.phone).filter(
-                       Contact.campaign_id == campaign.id).all()}
+        transport_c = 0
+        phone_set   = {r[0] for r in db.query(Contact.phone).filter(
+                        Contact.campaign_id == campaign.id).all()}
 
-        for idx in range(args.count * 3):  # over-generate to handle collisions
+        for idx in range(args.count * 3):   # over-generate to handle collisions
             if created_c >= to_create:
                 break
 
@@ -366,8 +470,15 @@ def seed():
             loc   = rng.choice(LOCATIONS)
             trans = rng.random() < 0.18   # ~18% need transport
             notes = rng.choice(NOTES_POOL)
-            vol = vol_objs[created_c % len(vol_objs)]
-            # spread creation times over last 7 days
+
+            # Weighted random volunteer — different tallies per volunteer
+            vol = rng.choices(vol_objs, weights=vol_weights, k=1)[0]
+
+            # Resolve hub index for logistics attribution
+            vol_def  = next((v for v in VOLUNTEERS if sub(v["tag"]) == vol.email), None)
+            hub_idx  = vol_def["hub"] if vol_def else 0
+
+            # Spread creation times over last 7 days
             created_at = datetime.now(timezone.utc) - timedelta(
                 hours=rng.randint(1, 168),
                 minutes=rng.randint(0, 59),
@@ -383,27 +494,38 @@ def seed():
                 notes=notes or None,
                 needs_transport=trans,
                 transport_location=loc if trans else None,
+                source="volunteer",
+                how_did_you_hear=rng.choice(HOW_HEARD_POOL),
+                email=(f"{fn.lower()}.{ln.lower()}@gmail.com"
+                       if rng.random() < 0.15 else None),
+                second_phone=(gen_second_phone(idx)
+                              if rng.random() < 0.12 else None),
                 created_at=created_at,
             )
             db.add(c); db.flush()
 
-            # Status
+            # ── Contact Status ────────────────────────────────────────
             status_code = rng.choice(STATUS_POOL)
+            note_pool   = STATUS_NOTES.get(status_code, [""])
             db.add(ContactStatus(
                 contact_id=c.id,
                 status_code=status_code,
                 updated_by=vol.id,
                 updated_at=created_at + timedelta(minutes=rng.randint(5, 180)),
+                note=rng.choice(note_pool) or None,
             ))
 
-            # Logistics for transport
+            # ── MessageSend for message_sent contacts ─────────────────
+            if status_code == ContactStatusCode.message_sent:
+                db.add(MessageSend(
+                    contact_id=c.id,
+                    template_id=rng.choice(tmpl_objs).id,
+                    sent_by=vol.id,
+                    sent_at=created_at + timedelta(minutes=rng.randint(10, 300)),
+                ))
+
+            # ── Logistics for transport contacts ──────────────────────
             if trans:
-                # determine hub index for the volunteer; fallback to 0 if no email (P0-2.1)
-                hub_idx = 0
-                if vol.email:
-                    match = next((v for v in VOLUNTEERS if sub(v["tag"]) == vol.email), None)
-                    if match:
-                        hub_idx = match["hub"]
                 db.add(Logistics(
                     contact_id=c.id,
                     organisation_id=org.id,
@@ -413,11 +535,11 @@ def seed():
                         TransportStatus.arranged,
                     ]),
                     coordinator_note=rng.choice(TRANSPORT_NOTES).format(loc=loc),
-                    updated_by=hl_objs[0].id,
+                    updated_by=hl_objs[hub_idx].id,   # correct hub leader
                 ))
                 transport_c += 1
 
-            # Follow-up queue for undecided / no-answer
+            # ── Follow-up queue for undecided / no-answer ─────────────
             if status_code in (ContactStatusCode.undecided, ContactStatusCode.no_answer):
                 db.add(FollowUpQueue(
                     contact_id=c.id,
@@ -427,12 +549,14 @@ def seed():
                         FollowUpQueueType.soft_checkin,
                         FollowUpQueueType.soft_checkin,
                         FollowUpQueueType.missed_you,
+                        FollowUpQueueType.thank_you,
                     ]),
                     assigned_to=vol.id,
                     status=rng.choice([
                         FollowUpStatus.pending,
                         FollowUpStatus.pending,
                         FollowUpStatus.in_progress,
+                        FollowUpStatus.done,
                     ]),
                 ))
 
@@ -445,31 +569,33 @@ def seed():
         total = existing_count + created_c
         print(f"\n  ✓  {total} total contacts  ({transport_c} need transport)")
 
-        # Print summary
+        # ── Summary ───────────────────────────────────────────────────
         print(f"""
   ════════════════════════════════════════════════════════
   DEMO READY — {total} contacts seeded across 5 hubs
   ════════════════════════════════════════════════════════
 
   MINISTER   (→ /admin)
-    {args.email}
+    Email : {args.email}
+    Phone : {e164(args.phone)}
 
-  HUB LEADERS  (→ /hub-login, use email tab)
-    {sub('sur'):<42}  Surulere Hub
-    {sub('ikj'):<42}  Ikeja Hub
-    {sub('lkk'):<42}  Lekki Hub
-    {sub('osh'):<42}  Oshodi Hub
-    {sub('fst'):<42}  Festac Hub
+  HUB LEADERS  (→ /hub-login, email or phone tab)
+    {sub('sur'):<42}  /  +2348011110001  (Surulere)
+    {sub('ikj'):<42}  /  +2348011110002  (Ikeja)
+    {sub('lkk'):<42}  /  +2348011110003  (Lekki)
+    {sub('osh'):<42}  /  +2348011110004  (Oshodi)
+    {sub('fst'):<42}  /  +2348011110005  (Festac)
 
-  VOLUNTEERS  (→ /login, use email tab)
-    {sub('v01'):<42}  Chukwuemeka Eze   (Surulere)
-    {sub('v05'):<42}  Tunde Babatunde   (Ikeja)
-    {sub('v09'):<42}  Obinna Nwofor     (Lekki)
-    {sub('v13'):<42}  Olusegun Badmus   (Oshodi)
-    {sub('v17'):<42}  Chukwudi Nwofor   (Festac)
+  VOLUNTEERS  (→ /login, email or phone tab)
+    {sub('v01'):<42}  /  +2348021110001  Chukwuemeka Eze   (Surulere)
+    {sub('v02'):<42}  /  +2348021110002  Ngozi Obi         (Surulere)
+    {sub('v05'):<42}  /  +2348021110005  Tunde Babatunde   (Ikeja)
+    {sub('v09'):<42}  /  +2348021110009  Obinna Nwofor     (Lekki)
+    {sub('v13'):<42}  /  +2348021110013  Olusegun Badmus   (Oshodi)
+    {sub('v17'):<42}  /  +2348021110017  Chukwudi Nwofor   (Festac)
     … (v01–v20 all work)
 
-  All OTPs arrive in your main Gmail inbox.
+  All OTPs arrive in your main Gmail inbox (email) or via SMS (phone).
   ════════════════════════════════════════════════════════
 """)
 

@@ -5,8 +5,8 @@ Creates three test accounts (minister, hub_leader, volunteer) so you can
 log in as any role from a single Gmail inbox.
 
   minister   → EMAIL          (phone: PHONE)
-  hub_leader → EMAIL+hub@...  (email login only)
-  volunteer  → EMAIL+vol@...  (email login only)
+  hub_leader → EMAIL+hub@...  (email or phone login)
+  volunteer  → EMAIL+vol@...  (email or phone login)
 
 All three OTPs land in your main Gmail inbox via + addressing.
 
@@ -26,23 +26,35 @@ NOTES
     This script does NOT run CREATE TABLE — use migrations/schema.sql for that.
   • Safe to re-run; skips anything that already exists.
   • Works over the Supabase session pooler URL (port 5432).
+
+IMPORTANT
+---------
+  For a full demo with 5 hubs, 20 volunteers, and 5000 contacts,
+  run seed_demo.py instead. seed_admin.py is for quick single-account
+  bootstrapping only. The default --org matches seed_demo.py so both
+  scripts target the same organisation when used together.
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import argparse
-from sqlalchemy import create_engine, text
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from backend.config import settings
-from backend.models import User, UserRole, UserStatus, Organisation, Campaign, Hub, CampaignStatus
+from backend.models import (
+    User, UserRole, UserStatus,
+    Organisation, Campaign, Hub, CampaignStatus,
+)
 
 # ── Parse args ───────────────────────────────────────────────────────────────
-
 p = argparse.ArgumentParser(description="Seed REACH admin accounts.")
 p.add_argument("--email", default=os.environ.get("SEED_ADMIN_EMAIL"))
 p.add_argument("--phone", default=os.environ.get("SEED_ADMIN_PHONE"))
-p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "Ministry"),
-               help="Organisation name (default: Ministry)")
+p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "The Standing Church"),
+               help="Organisation name (default: The Standing Church)")
 args = p.parse_args()
 
 if not args.email or not args.phone:
@@ -58,9 +70,11 @@ _parts      = ADMIN_EMAIL.split("@")
 HL_EMAIL    = f"{_parts[0]}+hub@{_parts[1]}"
 VOL_EMAIL   = f"{_parts[0]}+vol@{_parts[1]}"
 
-# ── Engine with timeout disabled at connection level ─────────────────────────
-# SET LOCAL requires an open transaction to stick; connect_args applies it
-# before any query is sent, so Supabase's role-level timeout cannot override it.
+# Predictable demo phone numbers for hub leader and volunteer
+HL_PHONE    = "+2348011110001"
+VOL_PHONE   = "+2348021110001"
+
+# ── Engine ────────────────────────────────────────────────────────────────────
 _engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
@@ -74,16 +88,21 @@ def seed():
     db = _Session()
 
     try:
-        print("\n  REACH seed starting …\n")
+        print(f"\n  REACH seed starting — org: {args.org}\n")
 
         # ── Organisation ──────────────────────────────────────────────
         org = db.query(Organisation).filter(Organisation.name == args.org).first()
         if not org:
-            slug = args.org.lower().replace(" ", "-")
-            # Handle slug collision
-            existing_slug = db.query(Organisation).filter(Organisation.slug == slug).first()
-            if existing_slug:
-                slug = f"{slug}-{existing_slug.id[:4]}"
+            # Safe slug with counter-based collision guard
+            base_slug = args.org.lower().replace(" ", "-")
+            slug      = base_slug
+            counter   = 1
+            while db.query(Organisation).filter(
+                Organisation.slug == slug
+            ).first():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
             org = Organisation(name=args.org, slug=slug)
             db.add(org); db.commit(); db.refresh(org)
             print(f"  ✓  Created org:      {org.name}")
@@ -91,7 +110,6 @@ def seed():
             print(f"  –  Org exists:      {org.name}")
 
         # ── Campaign ──────────────────────────────────────────────────
-        # Hub requires a campaign_id (NOT NULL), so we need one first.
         campaign = (
             db.query(Campaign)
             .filter(Campaign.organisation_id == org.id)
@@ -100,8 +118,11 @@ def seed():
         if not campaign:
             campaign = Campaign(
                 organisation_id=org.id,
-                name="Admin Campaign",
+                name="Times of Refreshing 2026",
                 status=CampaignStatus.active,
+                programme_date=datetime.now(timezone.utc) + timedelta(days=14),
+                venue="Teslim Balogun Stadium, Surulere",
+                target_count=5000,
             )
             db.add(campaign); db.commit(); db.refresh(campaign)
             print(f"  ✓  Created campaign: {campaign.name}")
@@ -118,8 +139,10 @@ def seed():
             hub = Hub(
                 organisation_id=org.id,
                 campaign_id=campaign.id,
-                name="Admin Hub",
-                zone="Central",
+                name="Surulere Hub",
+                zone="Lagos Island",
+                location="Bode Thomas / Shitta axis, Surulere",
+                description="Covers Surulere, Orile, Iganmu and Eric Moore.",
             )
             db.add(hub); db.commit(); db.refresh(hub)
             print(f"  ✓  Created hub:      {hub.name}")
@@ -127,7 +150,8 @@ def seed():
             print(f"  –  Hub exists:       {hub.name}")
 
         # ── User upsert helper ────────────────────────────────────────
-        def upsert(role, email=None, phone=None, hub_id=None):
+        def upsert(role, name, email=None, phone=None, hub_id=None,
+                   is_reg=False, is_dec=False):
             q = db.query(User).filter(User.organisation_id == org.id)
             existing = (
                 q.filter(User.email == email).first() if email
@@ -135,56 +159,84 @@ def seed():
                 else None
             )
             if existing:
-                existing.role   = role
-                existing.status = UserStatus.active
+                existing.role                = role
+                existing.status              = UserStatus.active
+                existing.name                = name
+                existing.is_registration_team = is_reg
+                existing.is_decisions_team   = is_dec
                 if hub_id:
                     existing.hub_id = hub_id
                 db.commit()
                 label = email or phone
-                print(f"  –  Updated  [{role.value:<12}] {label}")
+                print(f"  –  Updated  [{role.value:<17}] {label}")
                 return existing
 
             u = User(
                 organisation_id=org.id,
                 role=role,
                 status=UserStatus.active,
-                name="Admin",
+                name=name,
                 email=email,
                 phone=phone,
                 hub_id=hub_id,
+                is_registration_team=is_reg,
+                is_decisions_team=is_dec,
             )
             db.add(u); db.commit(); db.refresh(u)
             label = email or phone
-            print(f"  ✓  Created  [{role.value:<12}] {label}")
+            print(f"  ✓  Created  [{role.value:<17}] {label}")
             return u
 
-        # ── Create the three accounts ─────────────────────────────────
-        upsert(UserRole.minister,   email=ADMIN_EMAIL, phone=ADMIN_PHONE)
-        upsert(UserRole.hub_leader, email=HL_EMAIL,    hub_id=hub.id)
-        upsert(UserRole.volunteer,  email=VOL_EMAIL,   hub_id=hub.id)
+        # ── Three accounts ────────────────────────────────────────────
+        upsert(
+            UserRole.minister,
+            name="Pastor Tara",
+            email=ADMIN_EMAIL,
+            phone=ADMIN_PHONE,
+        )
+        upsert(
+            UserRole.hub_leader,
+            name="Blessing Okafor",
+            email=HL_EMAIL,
+            phone=HL_PHONE,
+            hub_id=hub.id,
+            is_reg=True,
+            is_dec=True,
+        )
+        upsert(
+            UserRole.volunteer,
+            name="Chukwuemeka Eze",
+            email=VOL_EMAIL,
+            phone=VOL_PHONE,
+            hub_id=hub.id,
+            is_reg=True,
+        )
 
         # ── Summary ───────────────────────────────────────────────────
         print("""
-  ────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────
   LOGIN CREDENTIALS
-  ────────────────────────────────────────────────""")
-        print(f"  Minister   {ADMIN_EMAIL}")
-        print(f"             phone: {ADMIN_PHONE}")
-        print(f"             → /admin")
+  ────────────────────────────────────────────────────────""")
+        print(f"  Minister    {ADMIN_EMAIL}")
+        print(f"              phone: {ADMIN_PHONE}")
+        print(f"              → /admin")
         print()
-        print(f"  Hub Leader {HL_EMAIL}")
-        print(f"             → /hub-login")
+        print(f"  Hub Leader  {HL_EMAIL}")
+        print(f"              phone: {HL_PHONE}")
+        print(f"              → /hub-login  (email or phone tab)")
         print()
-        print(f"  Volunteer  {VOL_EMAIL}")
-        print(f"             → /login  (toggle to email)")
+        print(f"  Volunteer   {VOL_EMAIL}")
+        print(f"              phone: {VOL_PHONE}")
+        print(f"              → /login  (email or phone tab)")
         print("""
-  All OTPs land in your main Gmail inbox.
-  ────────────────────────────────────────────────
+  All OTPs land in your main Gmail inbox (email) or via SMS (phone).
+  ────────────────────────────────────────────────────────
 """)
 
     except Exception as e:
         db.rollback()
         print(f"\n  ✗  Seed failed: {e}\n")
+        import traceback; traceback.print_exc()
         raise
     finally:
         db.close()

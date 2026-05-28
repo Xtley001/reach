@@ -1,27 +1,30 @@
 """
 REACH — Attendance & Decisions Seed Script
 ============================================
-Populates attendance records and decisions for The Standing Church event (Times of Refreshing 2026).
+Populates attendance records and decisions for The Standing Church
+event (Times of Refreshing 2026).
 
 Creates realistic data linked to seed_demo.py data:
-  • Pastor Akintara as the minister
+  • Pastor Tara as the minister
   • Volunteers from The Standing Church hubs
   • 73% of seeded contacts as confirmed attendees
-  • Additional walk-in attendees
+  • 27% of outreach contacts as walk-ins
+  • Additional new walk-in attendees
   • ~60% of attendees have decision cards filled
   • Decision types: salvation, rededication, prayer, healing, holy_spirit
-  • Various counsellors (hub leaders, pastor, registration team) handling decisions
+  • ~22% of decisions request a church referral
+  • Various counsellors (hub leaders, pastor) handling decisions
 
 USAGE
 -----
-  python -m backend.seed_attendance --email you@gmail.com --phone +2349158523342 [--count 300]
+  python -m backend.seed_attendance --email you@gmail.com --phone +2349158523342 [--count 2000]
 
 NOTES
 -----
   • Must run AFTER seed_demo.py (needs contacts, campaign, volunteers)
   • Linked to "The Standing Church" organisation and "Times of Refreshing 2026" campaign
   • Deterministic random seed for reproducibility
-  • Safe to re-run; updates existing attendance records
+  • Safe to re-run; skips existing attendance records
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,12 +33,13 @@ import argparse
 import random
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.config import settings
 from backend.models import (
-    Organisation, Campaign, Contact, User, Attendance, Decision,
+    Organisation, Campaign, Contact, User, Hub,
+    Attendance, Decision,
     UserRole, UserStatus, ContactStatus, ContactStatusCode,
 )
 
@@ -44,7 +48,8 @@ p = argparse.ArgumentParser(description="Seed attendance & decisions.")
 p.add_argument("--email", default=os.environ.get("SEED_ADMIN_EMAIL"))
 p.add_argument("--phone", default=os.environ.get("SEED_ADMIN_PHONE"))
 p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "The Standing Church"))
-p.add_argument("--count", type=int, default=2000, help="Number of walk-in attendees (default 2000)")
+p.add_argument("--count", type=int, default=2000,
+               help="Number of brand-new walk-in attendees (default 2000)")
 args = p.parse_args()
 
 if not args.email or not args.phone:
@@ -97,8 +102,8 @@ CHURCH_NAMES = [
     "Royal House Chapel",
 ]
 
-AGE_RANGES = ["18-25", "26-35", "36-45", "46-55", "56-65", "66+"]
-GENDERS = ["male", "female"]
+AGE_RANGES  = ["18-25", "26-35", "36-45", "46-55", "56-65", "66+"]
+GENDERS     = ["male", "female"]
 OCCUPATIONS = [
     "Student","Trader","Nurse","Teacher","Engineer","House wife",
     "Mechanic","Driver","Accountant","Businesswoman","Retailer",
@@ -106,14 +111,66 @@ OCCUPATIONS = [
 ]
 
 DECISION_TYPES = [
-    ("salvation",      0.45),
-    ("rededication",   0.25),
-    ("prayer",         0.15),
-    ("healing",        0.10),
-    ("holy_spirit",    0.05),
+    ("salvation",    0.45),
+    ("rededication", 0.25),
+    ("prayer",       0.15),
+    ("healing",      0.10),
+    ("holy_spirit",  0.05),
 ]
 
-ATTENDING_STATUS = ["yes", "no", "used_to"]  # Valid values for currently_attending
+ATTENDING_STATUS = ["yes", "no", "used_to"]
+
+# Hub-aware areas for decision cards
+HUB_AREAS = {
+    "Surulere Hub":  ["Surulere", "Orile", "Iganmu", "Eric Moore", "Aguda"],
+    "Ikeja Hub":     ["Ikeja", "Ogba", "Agidingbi", "Omole", "Berger", "Ojodu"],
+    "Lekki Hub":     ["Lekki Phase 1", "Lekki Phase 2", "Ajah", "Sangotedo", "Chevron"],
+    "Oshodi Hub":    ["Oshodi", "Mushin", "Isolo", "Mafoluku", "Ejigbo"],
+    "Festac Hub":    ["Festac", "Amuwo-Odofin", "Mile 2", "Satellite Town", "Orile"],
+}
+ALL_AREAS = [a for areas in HUB_AREAS.values() for a in areas]
+
+REFERRAL_AREAS = [
+    "Surulere", "Ikeja", "Lekki", "Oshodi", "Festac",
+    "Yaba", "Gbagada", "Ketu", "Ikorodu", "Agege",
+]
+
+DECISION_NOTES = [
+    "Very open to follow-up visit",
+    "Cried during altar call — genuine moment",
+    "Has been away from church for 5 years",
+    "Wants to join a small group",
+    "Brought two friends who also responded",
+    "First time at a crusade",
+    "Elderly woman — asked for home visit",
+    "Young man, said he was running from God",
+    "Requested Bible",
+    "Asked about baptism",
+    None, None, None,
+]
+
+BROUGHT_BY_POOL = [
+    "A friend from church",
+    "My sister",
+    "My neighbour",
+    "A colleague at work",
+    "Someone from the bus",
+    None, None, None, None,
+]
+
+WALKIN_NOTES = [
+    "Came with a group of 3",
+    "Found at the main gate",
+    "Referred by a friend already inside",
+    "Came back after leaving earlier",
+    "Picked up flyer outside",
+    None, None, None,
+]
+
+LANDMARKS = [
+    "Bus Stop", "Market", "Church", "School",
+    "Community Center", "Hospital", "Police Station", "Filling Station",
+]
 
 
 def gen_phone(i):
@@ -129,10 +186,7 @@ def gen_phone(i):
 def seed():
     db = Session()
     try:
-        print(f"\n  REACH attendance & decisions seed\n")
-        print(f"  • 73% of outreach contacts as confirmed attendees")
-        print(f"  • 27% of outreach contacts as walk-ins")
-        print(f"  • {args.count} additional new walk-ins\n")
+        print(f"\n  REACH attendance & decisions seed — org: {args.org}\n")
 
         # ── Fetch key entities ────────────────────────────────────────
         org = db.query(Organisation).filter(
@@ -149,32 +203,62 @@ def seed():
             print(f"  ✗  Campaign not found. Run seed_demo.py first.\n")
             return
 
-        # ── Get volunteers who will check people in ──────────────────
         volunteers = db.query(User).filter(
             User.organisation_id == org.id,
-            User.role == UserRole.volunteer
+            User.role == UserRole.volunteer,
         ).all()
         if not volunteers:
             print(f"  ✗  No volunteers found. Run seed_demo.py first.\n")
             return
 
-        print(f"  ✓  Campaign: {campaign.name}")
-        print(f"  ✓  Volunteers available: {len(volunteers)}\n")
+        print(f"  ✓  Campaign:   {campaign.name}")
+        print(f"  ✓  Volunteers: {len(volunteers)}")
 
-        # ── Get all contacts from outreach ──────────────────────────
-        print(f"  Creating attendance records …\n")
+        # ── Build hub → volunteer map for correct check-in attribution ─
+        hub_volunteers: dict = {}
+        for v in volunteers:
+            hub_volunteers.setdefault(v.hub_id, []).append(v)
+
+        def checkin_vol(contact):
+            """Return a volunteer from the same hub as the contact's adder."""
+            if contact:
+                adder = db.query(User).filter(User.id == contact.added_by).first()
+                if adder and adder.hub_id in hub_volunteers:
+                    return rng.choice(hub_volunteers[adder.hub_id])
+            return rng.choice(volunteers)
+
+        # ── Derive realistic event-day check-in window ────────────────
+        # Event day: programme_date from the campaign (14 days out from seed)
+        event_day = campaign.programme_date or (
+            datetime.now(timezone.utc) + timedelta(days=14)
+        )
+        event_start = event_day.replace(hour=15, minute=0, second=0, microsecond=0)
+
+        def checkin_time():
+            """Random time within the 5-hour event window (3 pm – 8 pm)."""
+            return event_start + timedelta(minutes=rng.randint(0, 300))
+
+        # ── Counsellors for decisions ─────────────────────────────────
+        counsellors = db.query(User).filter(
+            User.organisation_id == org.id,
+            User.role.in_([UserRole.hub_leader, UserRole.minister]),
+        ).all()
+        if not counsellors:
+            counsellors = volunteers
+
+        # ── Fetch all contacts ────────────────────────────────────────
+        print(f"\n  Creating attendance records …\n")
         all_contacts = db.query(Contact).filter(
             Contact.campaign_id == campaign.id
         ).all()
-        
-        # Randomize contacts
-        rng.shuffle(all_contacts)
-        
-        # Split: 73% confirmed, 27% walk-in
-        split_point = int(len(all_contacts) * 0.73)
-        confirmed_contacts = all_contacts[:split_point]
-        walkin_contacts = all_contacts[split_point:]
 
+        rng.shuffle(all_contacts)
+
+        split_point        = int(len(all_contacts) * 0.73)
+        confirmed_contacts = all_contacts[:split_point]
+        walkin_contacts    = all_contacts[split_point:]
+
+        # ── 73 %: confirmed outreach attendees ───────────────────────
         outreach_confirmed = 0
         for contact in confirmed_contacts:
             existing = db.query(Attendance).filter(
@@ -183,26 +267,27 @@ def seed():
             if existing:
                 continue
 
-            attend_time = datetime.now(timezone.utc) - timedelta(
-                    hours=rng.randint(0, 5),
-                    minutes=rng.randint(0, 59)
-                )
-            attendance = Attendance(
+            attend_time = checkin_time()
+            db.add(Attendance(
                 campaign_id=campaign.id,
                 organisation_id=org.id,
                 contact_id=contact.id,
-                checked_in_by=rng.choice(volunteers).id,
+                checked_in_by=checkin_vol(contact).id,
                 checked_in_at=attend_time,
                 is_walk_in=False,
                 source=rng.choice(["gate_search", "paper_form"]),
                 how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
                 notes="Confirmed attendee from outreach" if rng.random() > 0.6 else None,
-            )
-            db.add(attendance)
+            ))
+            # Flip contact.attended
+            contact.attended    = True
+            contact.attended_at = attend_time
             db.add(ContactStatus(
                 contact_id=contact.id,
-                status_code=ContactStatusCode.attended,
-                updated_by=rng.choice(volunteers).id,
+                status_code=ContactStatusCode.attended
+                    if hasattr(ContactStatusCode, "attended")
+                    else ContactStatusCode.coming,
+                updated_by=checkin_vol(contact).id,
                 updated_at=attend_time,
             ))
             outreach_confirmed += 1
@@ -210,7 +295,7 @@ def seed():
         db.commit()
         print(f"  ✓  {outreach_confirmed} confirmed outreach attendees")
 
-        # ── Attendance: 27% from contacts as walk-ins ────────────────
+        # ── 27 %: outreach contacts who came as walk-ins ──────────────
         outreach_walkin = 0
         for contact in walkin_contacts:
             existing = db.query(Attendance).filter(
@@ -219,44 +304,39 @@ def seed():
             if existing:
                 continue
 
-            attendance = Attendance(
+            attend_time = checkin_time()
+            db.add(Attendance(
                 campaign_id=campaign.id,
                 organisation_id=org.id,
                 contact_id=contact.id,
-                checked_in_by=rng.choice(volunteers).id,
-                checked_in_at=datetime.now(timezone.utc) - timedelta(
-                    hours=rng.randint(1, 6),
-                    minutes=rng.randint(0, 59)
-                ),
+                checked_in_by=checkin_vol(contact).id,
+                checked_in_at=attend_time,
                 is_walk_in=True,
                 source="walk-in",
                 how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
-                notes=None,
-            )
-            db.add(attendance)
+                notes=rng.choice(WALKIN_NOTES),
+            ))
+            contact.attended    = True
+            contact.attended_at = attend_time
             outreach_walkin += 1
 
         db.commit()
         print(f"  ✓  {outreach_walkin} outreach contacts as walk-ins")
 
-        # ── Attendance: Additional new walk-ins ──────────────────────
+        # ── New walk-ins (no prior contact record) ────────────────────
         new_walkin = 0
         for i in range(args.count):
-            attendance = Attendance(
+            db.add(Attendance(
                 campaign_id=campaign.id,
                 organisation_id=org.id,
-                contact_id=None,  # completely new people
+                contact_id=None,
                 checked_in_by=rng.choice(volunteers).id,
-                checked_in_at=datetime.now(timezone.utc) - timedelta(
-                    hours=rng.randint(1, 6),
-                    minutes=rng.randint(0, 59)
-                ),
+                checked_in_at=checkin_time(),
                 is_walk_in=True,
                 source="walk-in",
                 how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
-                notes=None,
-            )
-            db.add(attendance)
+                notes=rng.choice(WALKIN_NOTES),
+            ))
             new_walkin += 1
             if new_walkin % 100 == 0:
                 db.commit()
@@ -268,64 +348,59 @@ def seed():
         total_attendees = outreach_confirmed + outreach_walkin + new_walkin
         print(f"\n  ✓  Total attendees: {total_attendees}")
 
-        # ── Decisions: ~60% of all attendees ──────────────────────────
+        # ── Decisions: ~60 % of all attendees ────────────────────────
         print(f"\n  Creating decision cards …\n")
 
-        # Get all attendees
         attendees = db.query(Attendance).filter(
             Attendance.campaign_id == campaign.id
         ).all()
 
-        # Counsellors = hub leaders + minister + registration team
-        counsellors = db.query(User).filter(
-            User.organisation_id == org.id,
-            User.role.in_([UserRole.hub_leader, UserRole.minister, UserRole.registration_team])
-        ).all()
-
-        if not counsellors:
-            print(f"  ✗  No counsellors found. Using volunteers.\n")
-            counsellors = volunteers
-
         decision_count = 0
         for idx, att in enumerate(attendees):
-            # ~60% probability of having a decision
             if rng.random() > 0.60:
                 continue
 
-            # Determine decision type
             decision_type = rng.choices(
                 [d[0] for d in DECISION_TYPES],
                 weights=[d[1] for d in DECISION_TYPES],
             )[0]
 
-            # Generate name + phone for decision
+            # Identity — pull from contact if available
             if att.contact_id:
-                contact = db.query(Contact).filter(Contact.id == att.contact_id).first()
-                name = contact.name
+                contact = db.query(Contact).filter(
+                    Contact.id == att.contact_id
+                ).first()
+                name    = contact.name
                 phone_1 = contact.phone or gen_phone(idx)
+                # Area from the contact's hub
+                adder    = db.query(User).filter(User.id == contact.added_by).first()
+                hub_name = adder.hub.name if (adder and adder.hub) else None
+                area     = rng.choice(HUB_AREAS.get(hub_name, ALL_AREAS))
             else:
-                # Walk-in: generate a new name
-                name = f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}"
+                name    = f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}"
                 phone_1 = gen_phone(idx)
+                area    = rng.choice(ALL_AREAS)
+
+            wants_referral = rng.random() < 0.22
 
             decision = Decision(
                 campaign_id=campaign.id,
                 organisation_id=org.id,
                 contact_id=att.contact_id,
                 counsellor_id=rng.choice(counsellors).id,
-                source="real_time",
+                source=rng.choices(
+                    ["real_time", "paper_form"], weights=[65, 35]
+                )[0],
 
                 # Identity
                 name=name,
                 phone_1=phone_1,
                 phone_2=gen_phone(idx + 10000) if rng.random() > 0.7 else None,
                 whatsapp_number=phone_1 if rng.random() > 0.4 else None,
-                email=None if rng.random() > 0.3 else f"{name.lower().replace(' ', '')}@gmail.com",
-                area=rng.choice(["Surulere", "Ikeja", "Lekki", "Oshodi", "Festac", "Mainland"]),
-                nearest_landmark=rng.choice([
-                    "Bus Stop", "Market", "Church", "School",
-                    "Community Center", "Hospital", "Police Station"
-                ]),
+                email=(f"{name.lower().replace(' ', '')}@gmail.com"
+                       if rng.random() > 0.7 else None),
+                area=area,
+                nearest_landmark=rng.choice(LANDMARKS),
 
                 # Decision
                 decision_type=decision_type,
@@ -333,16 +408,16 @@ def seed():
                 first_time=(decision_type == "salvation"),
                 currently_attending=rng.choice(ATTENDING_STATUS),
                 current_church=rng.choice(CHURCH_NAMES) if rng.random() > 0.4 else None,
-                wants_church_referral=False,
-                referral_area=None,
+                wants_church_referral=wants_referral,
+                referral_area=rng.choice(REFERRAL_AREAS) if wants_referral else None,
 
                 # Background
                 age_range=rng.choice(AGE_RANGES),
                 gender=rng.choice(GENDERS),
                 occupation=rng.choice(OCCUPATIONS),
                 how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
-                brought_by=None,
-                notes=None if rng.random() > 0.5 else f"{decision_type.replace('_', ' ').title()} decision",
+                brought_by=rng.choice(BROUGHT_BY_POOL),
+                notes=rng.choice(DECISION_NOTES),
             )
             db.add(decision)
             decision_count += 1
@@ -354,28 +429,28 @@ def seed():
         print(f"  ✓  {decision_count} decision cards recorded")
 
         # ── Summary ───────────────────────────────────────────────────
+        referral_count = int(decision_count * 0.22)
         print(f"""
   ════════════════════════════════════════════════════════
   ATTENDANCE & DECISIONS SEEDED ✓
   ════════════════════════════════════════════════════════
 
   Attendance Breakdown:
-    • Confirmed outreach:   {outreach_confirmed} (73%)
-    • Walk-in from contacts:{outreach_walkin} (27%)
-    • New walk-ins:         {new_walkin}
-    ────────────────────────────────
-    • TOTAL:                {total_attendees}
+    • Confirmed outreach:    {outreach_confirmed} (73%)
+    • Walk-in from contacts: {outreach_walkin} (27%)
+    • New walk-ins:          {new_walkin}
+    ─────────────────────────────────
+    • TOTAL:                 {total_attendees}
 
   Decisions:
-    • Cards filled:         {decision_count}
-    • Conversion rate:      {int(100 * decision_count / total_attendees)}%
+    • Cards filled:          {decision_count}
+    • Conversion rate:       {int(100 * decision_count / total_attendees) if total_attendees else 0}%
+    • Church referrals:      ~{referral_count}
 
-  Decision Breakdown:
-    • Accepted Jesus:       ~{int(decision_count * 0.45)}
-    • Rededication:         ~{int(decision_count * 0.25)}
-    • Church Referral:      ~{int(decision_count * 0.20)}
-    • Information Only:     ~{int(decision_count * 0.10)}
-
+  Decision Breakdown (approx):""")
+        for dtype, weight in DECISION_TYPES:
+            print(f"    • {dtype.replace('_',' ').title():<22} ~{int(decision_count * weight)}")
+        print("""
   Your dashboard is now fully populated for testing! 🎉
   ════════════════════════════════════════════════════════
 """)
@@ -383,6 +458,7 @@ def seed():
     except Exception as e:
         db.rollback()
         print(f"\n  ✗  Seed failed: {e}\n")
+        import traceback; traceback.print_exc()
         raise
     finally:
         db.close()
