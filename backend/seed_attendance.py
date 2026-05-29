@@ -246,81 +246,92 @@ def seed():
         if not counsellors:
             counsellors = volunteers
 
-        # ── Fetch all contacts ────────────────────────────────────────
+        # ── Fetch contact IDs only (avoid loading 5000 full objects) ─────
         print(f"\n  Creating attendance records …\n")
-        all_contacts = db.query(Contact).filter(
-            Contact.campaign_id == campaign.id
-        ).all()
+        BATCH = 200
 
-        rng.shuffle(all_contacts)
+        contact_ids = [
+            row[0] for row in
+            db.query(Contact.id).filter(
+                Contact.campaign_id == campaign.id
+            ).all()
+        ]
+        rng.shuffle(contact_ids)
 
-        split_point        = int(len(all_contacts) * 0.73)
-        confirmed_contacts = all_contacts[:split_point]
-        walkin_contacts    = all_contacts[split_point:]
+        split_point        = int(len(contact_ids) * 0.73)
+        confirmed_ids      = contact_ids[:split_point]
+        walkin_ids         = contact_ids[split_point:]
 
         # ── 73 %: confirmed outreach attendees ───────────────────────
         outreach_confirmed = 0
-        for contact in confirmed_contacts:
-            existing = db.query(Attendance).filter(
-                Attendance.contact_id == contact.id
-            ).first()
-            if existing:
-                continue
+        for batch_start in range(0, len(confirmed_ids), BATCH):
+            batch_ids = confirmed_ids[batch_start:batch_start + BATCH]
+            contacts  = db.query(Contact).filter(Contact.id.in_(batch_ids)).all()
+            for contact in contacts:
+                existing = db.query(Attendance).filter(
+                    Attendance.contact_id == contact.id
+                ).first()
+                if existing:
+                    continue
 
-            attend_time = checkin_time()
-            db.add(Attendance(
-                campaign_id=campaign.id,
-                organisation_id=org.id,
-                contact_id=contact.id,
-                checked_in_by=checkin_vol(contact).id,
-                checked_in_at=attend_time,
-                is_walk_in=False,
-                source=rng.choice(["gate_search", "paper_form"]),
-                how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
-                notes="Confirmed attendee from outreach" if rng.random() > 0.6 else None,
-            ))
-            # Flip contact.attended
-            contact.attended    = True
-            contact.attended_at = attend_time
-            db.add(ContactStatus(
-                contact_id=contact.id,
-                status_code=ContactStatusCode.attended
-                    if hasattr(ContactStatusCode, "attended")
-                    else ContactStatusCode.coming,
-                updated_by=checkin_vol(contact).id,
-                updated_at=attend_time,
-            ))
-            outreach_confirmed += 1
+                attend_time = checkin_time()
+                db.add(Attendance(
+                    campaign_id=campaign.id,
+                    organisation_id=org.id,
+                    contact_id=contact.id,
+                    checked_in_by=checkin_vol(contact).id,
+                    checked_in_at=attend_time,
+                    is_walk_in=False,
+                    source=rng.choice(["gate_search", "paper_form"]),
+                    how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
+                    notes="Confirmed attendee from outreach" if rng.random() > 0.6 else None,
+                ))
+                contact.attended    = True
+                contact.attended_at = attend_time
+                db.add(ContactStatus(
+                    contact_id=contact.id,
+                    status_code=ContactStatusCode.coming,
+                    updated_by=checkin_vol(contact).id,
+                    updated_at=attend_time,
+                ))
+                outreach_confirmed += 1
 
-        db.commit()
+            db.commit()
+            print(f"  –  confirmed {outreach_confirmed} / {len(confirmed_ids)} …")
+
         print(f"  ✓  {outreach_confirmed} confirmed outreach attendees")
 
         # ── 27 %: outreach contacts who came as walk-ins ──────────────
         outreach_walkin = 0
-        for contact in walkin_contacts:
-            existing = db.query(Attendance).filter(
-                Attendance.contact_id == contact.id
-            ).first()
-            if existing:
-                continue
+        for batch_start in range(0, len(walkin_ids), BATCH):
+            batch_ids = walkin_ids[batch_start:batch_start + BATCH]
+            contacts  = db.query(Contact).filter(Contact.id.in_(batch_ids)).all()
+            for contact in contacts:
+                existing = db.query(Attendance).filter(
+                    Attendance.contact_id == contact.id
+                ).first()
+                if existing:
+                    continue
 
-            attend_time = checkin_time()
-            db.add(Attendance(
-                campaign_id=campaign.id,
-                organisation_id=org.id,
-                contact_id=contact.id,
-                checked_in_by=checkin_vol(contact).id,
-                checked_in_at=attend_time,
-                is_walk_in=True,
-                source="walk-in",
-                how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
-                notes=rng.choice(WALKIN_NOTES),
-            ))
-            contact.attended    = True
-            contact.attended_at = attend_time
-            outreach_walkin += 1
+                attend_time = checkin_time()
+                db.add(Attendance(
+                    campaign_id=campaign.id,
+                    organisation_id=org.id,
+                    contact_id=contact.id,
+                    checked_in_by=checkin_vol(contact).id,
+                    checked_in_at=attend_time,
+                    is_walk_in=True,
+                    source="walk-in",
+                    how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
+                    notes=rng.choice(WALKIN_NOTES),
+                ))
+                contact.attended    = True
+                contact.attended_at = attend_time
+                outreach_walkin += 1
 
-        db.commit()
+            db.commit()
+            print(f"  –  walk-ins {outreach_walkin} / {len(walkin_ids)} …")
+
         print(f"  ✓  {outreach_walkin} outreach contacts as walk-ins")
 
         # ── New walk-ins (no prior contact record) ────────────────────
@@ -351,79 +362,87 @@ def seed():
         # ── Decisions: ~60 % of all attendees ────────────────────────
         print(f"\n  Creating decision cards …\n")
 
-        attendees = db.query(Attendance).filter(
-            Attendance.campaign_id == campaign.id
-        ).all()
+        attendance_ids = [
+            row[0] for row in
+            db.query(Attendance.id).filter(
+                Attendance.campaign_id == campaign.id
+            ).all()
+        ]
 
         decision_count = 0
-        for idx, att in enumerate(attendees):
-            if rng.random() > 0.60:
-                continue
+        for outer_start in range(0, len(attendance_ids), BATCH):
+            batch_att_ids = attendance_ids[outer_start:outer_start + BATCH]
+            attendees     = db.query(Attendance).filter(
+                Attendance.id.in_(batch_att_ids)
+            ).all()
+            for idx, att in enumerate(attendees, start=outer_start):
+                if rng.random() > 0.60:
+                    continue
 
-            decision_type = rng.choices(
-                [d[0] for d in DECISION_TYPES],
-                weights=[d[1] for d in DECISION_TYPES],
-            )[0]
+                decision_type = rng.choices(
+                    [d[0] for d in DECISION_TYPES],
+                    weights=[d[1] for d in DECISION_TYPES],
+                )[0]
 
-            # Identity — pull from contact if available
-            if att.contact_id:
-                contact = db.query(Contact).filter(
-                    Contact.id == att.contact_id
-                ).first()
-                name    = contact.name
-                phone_1 = contact.phone or gen_phone(idx)
-                # Area from the contact's hub
-                adder    = db.query(User).filter(User.id == contact.added_by).first()
-                hub_name = adder.hub.name if (adder and adder.hub) else None
-                area     = rng.choice(HUB_AREAS.get(hub_name, ALL_AREAS))
-            else:
-                name    = f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}"
-                phone_1 = gen_phone(idx)
-                area    = rng.choice(ALL_AREAS)
+                # Identity — pull from contact if available
+                if att.contact_id:
+                    contact = db.query(Contact).filter(
+                        Contact.id == att.contact_id
+                    ).first()
+                    name    = contact.name
+                    phone_1 = contact.phone or gen_phone(idx)
+                    # Area from the contact's hub
+                    adder    = db.query(User).filter(User.id == contact.added_by).first()
+                    hub_name = adder.hub.name if (adder and adder.hub) else None
+                    area     = rng.choice(HUB_AREAS.get(hub_name, ALL_AREAS))
+                else:
+                    name    = f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}"
+                    phone_1 = gen_phone(idx)
+                    area    = rng.choice(ALL_AREAS)
 
-            wants_referral = rng.random() < 0.22
+                wants_referral = rng.random() < 0.22
 
-            decision = Decision(
-                campaign_id=campaign.id,
-                organisation_id=org.id,
-                contact_id=att.contact_id,
-                counsellor_id=rng.choice(counsellors).id,
-                source=rng.choices(
-                    ["real_time", "paper_form"], weights=[65, 35]
-                )[0],
+                decision = Decision(
+                    campaign_id=campaign.id,
+                    organisation_id=org.id,
+                    contact_id=att.contact_id,
+                    counsellor_id=rng.choice(counsellors).id,
+                    source=rng.choices(
+                        ["real_time", "paper_form"], weights=[65, 35]
+                    )[0],
 
-                # Identity
-                name=name,
-                phone_1=phone_1,
-                phone_2=gen_phone(idx + 10000) if rng.random() > 0.7 else None,
-                whatsapp_number=phone_1 if rng.random() > 0.4 else None,
-                email=(f"{name.lower().replace(' ', '')}@gmail.com"
-                       if rng.random() > 0.7 else None),
-                area=area,
-                nearest_landmark=rng.choice(LANDMARKS),
+                    # Identity
+                    name=name,
+                    phone_1=phone_1,
+                    phone_2=gen_phone(idx + 10000) if rng.random() > 0.7 else None,
+                    whatsapp_number=phone_1 if rng.random() > 0.4 else None,
+                    email=(f"{name.lower().replace(' ', '')}@gmail.com"
+                           if rng.random() > 0.7 else None),
+                    area=area,
+                    nearest_landmark=rng.choice(LANDMARKS),
 
-                # Decision
-                decision_type=decision_type,
-                decision_type_other=None,
-                first_time=(decision_type == "salvation"),
-                currently_attending=rng.choice(ATTENDING_STATUS),
-                current_church=rng.choice(CHURCH_NAMES) if rng.random() > 0.4 else None,
-                wants_church_referral=wants_referral,
-                referral_area=rng.choice(REFERRAL_AREAS) if wants_referral else None,
+                    # Decision
+                    decision_type=decision_type,
+                    decision_type_other=None,
+                    first_time=(decision_type == "salvation"),
+                    currently_attending=rng.choice(ATTENDING_STATUS),
+                    current_church=rng.choice(CHURCH_NAMES) if rng.random() > 0.4 else None,
+                    wants_church_referral=wants_referral,
+                    referral_area=rng.choice(REFERRAL_AREAS) if wants_referral else None,
 
-                # Background
-                age_range=rng.choice(AGE_RANGES),
-                gender=rng.choice(GENDERS),
-                occupation=rng.choice(OCCUPATIONS),
-                how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
-                brought_by=rng.choice(BROUGHT_BY_POOL),
-                notes=rng.choice(DECISION_NOTES),
-            )
-            db.add(decision)
-            decision_count += 1
-            if decision_count % 50 == 0:
-                db.commit()
-                print(f"  –  {decision_count} decisions …")
+                    # Background
+                    age_range=rng.choice(AGE_RANGES),
+                    gender=rng.choice(GENDERS),
+                    occupation=rng.choice(OCCUPATIONS),
+                    how_did_you_hear=rng.choice(HOW_DID_YOU_HEAR),
+                    brought_by=rng.choice(BROUGHT_BY_POOL),
+                    notes=rng.choice(DECISION_NOTES),
+                )
+                db.add(decision)
+                decision_count += 1
+                if decision_count % 50 == 0:
+                    db.commit()
+                    print(f"  –  {decision_count} decisions …")
 
         db.commit()
         print(f"  ✓  {decision_count} decision cards recorded")
