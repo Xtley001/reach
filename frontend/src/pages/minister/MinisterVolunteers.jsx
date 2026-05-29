@@ -16,7 +16,6 @@ export default function MinisterVolunteers() {
   const [inviteForm, setInviteForm] = useState({ name:'', phone:'', email:'', channel:'sms', role:'hub_leader', hub_id:'' });
   const [inviteResult, setInviteResult] = useState(null);
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [hubs, setHubs] = useState([]);
   // FIX-002: selectedId drives MinisterVolunteerDetail drilldown
   const [selectedId, setSelectedId] = useState(null);
 
@@ -35,7 +34,6 @@ export default function MinisterVolunteers() {
   }, []);
 
   useEffect(() => {
-    api.getMinisterHubs().then(d => setHubs(d.hubs || [])).catch(() => {});
   }, []);
 
   // FIX-002: Render MinisterVolunteerDetail when a volunteer is selected
