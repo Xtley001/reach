@@ -165,6 +165,10 @@ def seed():
                 existing.role                = role
                 existing.status              = UserStatus.active
                 existing.name                = name
+                if email is not None:
+                    existing.email = email
+                if phone is not None:
+                    existing.phone = phone
                 existing.is_registration_team = is_reg
                 existing.is_decisions_team   = is_dec
                 if hub_id:
