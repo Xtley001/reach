@@ -129,7 +129,6 @@ export default function HubTemplates() {
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>
               Use <code style={{ background: 'var(--bg-3)', padding: '1px 4px', borderRadius: 3 }}>{'{name}'}</code> and <code style={{ background: 'var(--bg-3)', padding: '1px 4px', borderRadius: 3 }}>{'{location}'}</code> as variables — they are replaced with the contact's real details when sending.
             </div>
-            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-ghost" onClick={cancelForm}>Cancel</button>
               <button className="btn btn-primary" onClick={save} disabled={saving}>
