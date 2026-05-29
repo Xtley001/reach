@@ -40,7 +40,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import argparse
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, or_
 from sqlalchemy.orm import sessionmaker
 
 from backend.config import settings
@@ -153,11 +153,14 @@ def seed():
         def upsert(role, name, email=None, phone=None, hub_id=None,
                    is_reg=False, is_dec=False):
             q = db.query(User).filter(User.organisation_id == org.id)
-            existing = (
-                q.filter(User.email == email).first() if email
-                else q.filter(User.phone == phone).first() if phone
-                else None
-            )
+            # Match existing user by email OR phone (if provided).
+            existing = None
+            if email and phone:
+                existing = q.filter(or_(User.email == email, User.phone == phone)).first()
+            elif email:
+                existing = q.filter(User.email == email).first()
+            elif phone:
+                existing = q.filter(User.phone == phone).first()
             if existing:
                 existing.role                = role
                 existing.status              = UserStatus.active
