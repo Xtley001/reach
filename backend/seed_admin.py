@@ -14,11 +14,14 @@ USAGE
 -----
   # Option A — env vars (recommended, set once in your shell or .env)
   export SEED_ADMIN_EMAIL=you@gmail.com
-  export SEED_ADMIN_PHONE=+2349158523342
+    export SEED_ADMIN_PHONE=+2349158523342   # optional
   python -m backend.seed_admin
 
   # Option B — flags
-  python -m backend.seed_admin --email you@gmail.com --phone +2349158523342
+    python -m backend.seed_admin --email you@gmail.com --phone +2349158523342
+
+    # If you omit --phone, the script generates stable unique numbers
+    # so you can seed multiple email bases in the same organisation.
 
 NOTES
 -----
@@ -38,6 +41,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import argparse
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import create_engine, or_
@@ -57,22 +61,22 @@ p.add_argument("--org",   default=os.environ.get("SEED_ADMIN_ORG", "The Standing
                help="Organisation name (default: The Standing Church)")
 args = p.parse_args()
 
-if not args.email or not args.phone:
+if not args.email:
     p.error(
-        "Provide --email and --phone, or set SEED_ADMIN_EMAIL / SEED_ADMIN_PHONE.\n"
+        "Provide --email, or set SEED_ADMIN_EMAIL.\n"
         "  Example:\n"
-        "    python -m backend.seed_admin --email you@gmail.com --phone +2349158523342"
+        "    python -m backend.seed_admin --email you@gmail.com"
     )
 
 ADMIN_EMAIL = args.email
-ADMIN_PHONE = args.phone
 _parts      = ADMIN_EMAIL.split("@")
 HL_EMAIL    = f"{_parts[0]}+hub@{_parts[1]}"
 VOL_EMAIL   = f"{_parts[0]}+vol@{_parts[1]}"
 
-# Predictable demo phone numbers for hub leader and volunteer
-HL_PHONE    = "+2348011110001"
-VOL_PHONE   = "+2348021110001"
+def stable_phone(base: str, role: str, prefix: str) -> str:
+    digest = hashlib.sha1(f"{base}:{role}".encode("utf-8")).hexdigest()
+    suffix = str(int(digest[:8], 16) % 10_000_000).zfill(7)
+    return f"{prefix}{suffix}"
 
 # ── Engine ────────────────────────────────────────────────────────────────────
 _engine = create_engine(
@@ -194,18 +198,27 @@ def seed():
             print(f"  ✓  Created  [{role.value:<17}] {label}")
             return u
 
+        existing_admin = (
+            db.query(User)
+            .filter(User.organisation_id == org.id, User.email == ADMIN_EMAIL)
+            .first()
+        )
+        admin_phone = args.phone or (existing_admin.phone if existing_admin and existing_admin.phone else stable_phone(ADMIN_EMAIL, "minister", "+234809"))
+        hub_phone = stable_phone(ADMIN_EMAIL, "hub_leader", "+234801")
+        volunteer_phone = stable_phone(ADMIN_EMAIL, "volunteer", "+234802")
+
         # ── Three accounts ────────────────────────────────────────────
         upsert(
             UserRole.minister,
             name="Pastor Tara",
             email=ADMIN_EMAIL,
-            phone=ADMIN_PHONE,
+            phone=admin_phone,
         )
         upsert(
             UserRole.hub_leader,
             name="Blessing Okafor",
             email=HL_EMAIL,
-            phone=HL_PHONE,
+            phone=hub_phone,
             hub_id=hub.id,
             is_reg=True,
             is_dec=True,
@@ -214,7 +227,7 @@ def seed():
             UserRole.volunteer,
             name="Chukwuemeka Eze",
             email=VOL_EMAIL,
-            phone=VOL_PHONE,
+            phone=volunteer_phone,
             hub_id=hub.id,
             is_reg=True,
         )
@@ -225,15 +238,15 @@ def seed():
   LOGIN CREDENTIALS
   ────────────────────────────────────────────────────────""")
         print(f"  Minister    {ADMIN_EMAIL}")
-        print(f"              phone: {ADMIN_PHONE}")
+        print(f"              phone: {admin_phone}")
         print(f"              → /admin")
         print()
         print(f"  Hub Leader  {HL_EMAIL}")
-        print(f"              phone: {HL_PHONE}")
+        print(f"              phone: {hub_phone}")
         print(f"              → /hub-login  (email or phone tab)")
         print()
         print(f"  Volunteer   {VOL_EMAIL}")
-        print(f"              phone: {VOL_PHONE}")
+        print(f"              phone: {volunteer_phone}")
         print(f"              → /login  (email or phone tab)")
         print("""
   All OTPs land in your main Gmail inbox (email) or via SMS (phone).
