@@ -228,25 +228,19 @@ In the Render dashboard → your service → **Environment** → add each of the
 |---|---|
 | `ENVIRONMENT` | `production` |
 | `DATABASE_URL` | Your Supabase Session mode connection string |
-| `JWT_SECRET_KEY` | Your `openssl rand -hex 64` output |
-| `JWT_ALGORITHM` | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` |
+| `JWT_SECRET` | Your `openssl rand -hex 64` output |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `120` |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` |
-| `SESSION_INACTIVITY_HOURS` | `168` |
-| `OTP_PROVIDER` | `email` |
-| `SMTP_HOST` | `smtp.gmail.com` |
-| `SMTP_PORT` | `465` |
-| `SMTP_USER` | your Gmail address |
-| `SMTP_PASS` | your 16-char Gmail App Password |
-| `ADMIN_BACKUP_EMAIL` | your Gmail address |
-| `TERMII_API_KEY` | from Termii dashboard |
-| `TERMII_SENDER_ID` | `REACH` |
-| `CLOUDINARY_CLOUD_NAME` | from Cloudinary dashboard |
-| `CLOUDINARY_API_KEY` | from Cloudinary dashboard |
-| `CLOUDINARY_API_SECRET` | from Cloudinary dashboard |
-| `REDIS_URL` | your Upstash `rediss://` URL |
-| `ALLOWED_ORIGINS` | your Vercel URL — **come back and update this after step 6** |
-| `FRONTEND_URL` | your Vercel URL — **come back and update this after step 6** |
+| `OTP_PROVIDER` | `brevo` |
+| `BREVO_API_KEY` | Your Brevo API key (`xkeysib-...`) |
+| `BREVO_SENDER` | Your verified sender email |
+| `ADMIN_BACKUP_EMAIL` | Your admin backup email |
+| `SUPABASE_URL` | Your Supabase Project URL (`https://[REF].supabase.co`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase `service_role` secret key |
+| `SUPABASE_AVATARS_BUCKET` | `avatars` |
+| `REDIS_URL` | Your Upstash `rediss://` URL |
+| `ALLOWED_ORIGINS` | Your Vercel URL (e.g. `https://reach-xyz.vercel.app`) |
+| `FRONTEND_URL` | Your Vercel URL (e.g. `https://reach-xyz.vercel.app`) |
 
 ### 5.3 Deploy and confirm
 
