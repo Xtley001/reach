@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import Icon from './ui/Icon';
 
 export default class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -16,7 +17,9 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.error) return (
       <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: 24, textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 16 }}>⚠️</div>
+        <div style={{ color: 'var(--amber)', marginBottom: 16 }}>
+          <Icon name="alert" size={36} />
+        </div>
         <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Something went wrong</div>
         <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 4, maxWidth: 360 }}>
           Your data's fine — nothing you've entered has been lost. Tap below to reload.

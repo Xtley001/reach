@@ -42,7 +42,7 @@ export default function MinisterVolunteers() {
       <MinisterVolunteerDetail
         volunteerId={selectedId}
         onBack={() => setSelectedId(null)}
-        backLabel="← Volunteers"
+        backLabel="Volunteers"
       />
     );
   }

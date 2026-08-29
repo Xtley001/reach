@@ -106,7 +106,7 @@ export default function ContactsList() {
       setContacts(cs => cs.map(x => x.id === callContact.id ? { ...x, current_status: newStatus } : x));
       invalidate('contacts:mine');
       invalidate('call:queue');
-      toast('Call logged ✓', 'success');
+      toast('Call logged', 'success');
       setCallContact(null);
     } catch (err) {
       toast(err.message || 'Failed to log call', 'error');
@@ -281,7 +281,7 @@ export default function ContactsList() {
             </button>
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState icon="👥" message={search ? 'No contacts match.' : 'No contacts yet. Add your first!'} />
+          <EmptyState icon={<Icon name="people" size={32} />} message={search ? 'No contacts match.' : 'No contacts yet. Add your first!'} />
         ) : (
           <div>
             {filtered.map(c => (
@@ -425,7 +425,7 @@ export default function ContactsList() {
                 disabled={!callReceptivity || callSaving}
                 onClick={handleSaveCallDisposition}
               >
-                {callSaving ? 'Saving…' : 'Log Call ✓'}
+                {callSaving ? 'Saving…' : 'Log Call'}
               </button>
             </div>
           </div>
@@ -493,12 +493,12 @@ export default function ContactsList() {
               <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Update status</div>
               {(() => {
                 const STATUS_BTNS = [
-                  { code: 'coming',          label: '✓ Coming',     color: 'var(--green)' },
-                  { code: 'undecided',       label: '? Undecided',  color: 'var(--amber)' },
-                  { code: 'not_coming',      label: '✗ Not Coming', color: 'var(--red)' },
-                  { code: 'no_answer',       label: '📵 No Answer', color: 'var(--text-2)' },
-                  { code: 'needs_transport', label: '🚌 Needs Bus', color: '#f97316' },
-                  { code: 'wrong_number',    label: '❌ Wrong No.',  color: 'var(--red)' },
+                  { code: 'coming',          label: 'Coming',     color: 'var(--green)' },
+                  { code: 'undecided',       label: 'Undecided',  color: 'var(--amber)' },
+                  { code: 'not_coming',      label: 'Not Coming', color: 'var(--red)' },
+                  { code: 'no_answer',       label: 'No Answer', color: 'var(--text-2)' },
+                  { code: 'needs_transport', label: 'Needs Bus', color: '#f97316' },
+                  { code: 'wrong_number',    label: 'Wrong No.',  color: 'var(--red)' },
                 ];
                 return (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>

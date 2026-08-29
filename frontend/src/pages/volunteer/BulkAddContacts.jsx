@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../../lib/api';
 import { invalidateAll } from '../../lib/cache';
 import { toast } from '../../lib/toast';
+import { Icon } from '../../components/UI';
 import PasteImportContacts from './PasteImportContacts';
 
 /**
@@ -19,30 +20,35 @@ export default function BulkAddContacts({ onDone }) {
   const [results, setResults] = useState(null);
 
   function updateContact(idx, field, value) {
-    const newContacts = [...contacts];
-    newContacts[idx][field] = value;
-    setContacts(newContacts);
+    setContacts(cs => {
+      const copy = [...cs];
+      copy[idx] = { ...copy[idx], [field]: value };
+      return copy;
+    });
     if (field === 'location' && value.trim()) {
-      setLastLocation(value);
+      setLastLocation(value.trim());
     }
   }
 
-  function applyLocationToBelow(idx) {
-    const location = contacts[idx].location.trim();
-    if (!location) {
-      toast('Enter a location first', 'error');
-      return;
-    }
-    const newContacts = [...contacts];
-    for (let i = idx + 1; i < newContacts.length; i++) {
-      newContacts[i].location = location;
-    }
-    setContacts(newContacts);
-    toast(`Applied to ${newContacts.length - idx - 1} rows below`, 'success');
+  function addRows(n = 5) {
+    setContacts(cs => [
+      ...cs,
+      ...Array(n).fill(null).map(() => ({
+        name: '', phone: '', location: lastLocation, notes: '', needs_transport: false, saved: false
+      }))
+    ]);
   }
 
-  function addRow() {
-    setContacts(c => [...c, { name: '', phone: '', location: lastLocation, notes: '', needs_transport: false, saved: false }]);
+  function applyLocationToAll(loc) {
+    if (!loc) return;
+    setContacts(cs => cs.map(c => ({ ...c, location: loc })));
+    toast('Location applied to all', 'success');
+  }
+
+  function applyLocationToBelow(idx, loc) {
+    if (!loc) return;
+    setContacts(cs => cs.map((c, i) => i >= idx ? { ...c, location: loc } : c));
+    toast('Location applied to rows below', 'success');
   }
 
   function removeRow(idx) {
@@ -55,8 +61,15 @@ export default function BulkAddContacts({ onDone }) {
 
   async function handleSubmit(continueMode = false) {
     const filled = contacts.filter(c => c.name.trim() || c.phone.trim());
+
     if (filled.length === 0) {
-      toast('Add at least one contact', 'error');
+      toast('Please enter at least one contact with name or phone', 'error');
+      return;
+    }
+
+    const invalid = filled.filter(c => !c.name.trim() || !c.phone.trim());
+    if (invalid.length > 0) {
+      toast('Each contact must have both a name and a phone number', 'error');
       return;
     }
 
@@ -115,7 +128,9 @@ export default function BulkAddContacts({ onDone }) {
         </div>
         <div className="page-body">
           <div style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
-            <div style={{ fontSize: 28, marginBottom: 'var(--space-3)' }}>✓</div>
+            <div style={{ color: 'var(--green)', marginBottom: 'var(--space-3)', display: 'flex', justifyContent: 'center' }}>
+              <Icon name="check" size={32} strokeWidth={2.5} />
+            </div>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 'var(--space-2)' }}>
               {results.saved} contact{results.saved === 1 ? '' : 's'} added
             </div>
@@ -144,7 +159,7 @@ export default function BulkAddContacts({ onDone }) {
         <div className="page-title">Bulk Add Contacts</div>
         <div className="page-subtitle">Add multiple contacts at once</div>
         <div className="filter-row" style={{ marginTop: 8 }}>
-          <button className="filter-tag" onClick={() => setMode('paste')}>← Paste List instead</button>
+          <button className="filter-tag" onClick={() => setMode('paste')}>Paste List instead</button>
         </div>
       </div>
 
@@ -208,13 +223,12 @@ export default function BulkAddContacts({ onDone }) {
                   <label className="field-label" style={{ fontSize: 12, margin: 0 }}>Location</label>
                   {contact.location.trim() && idx < contacts.length - 1 && (
                     <button
-                      onClick={() => applyLocationToBelow(idx)}
-                      style={{
-                        fontSize: 10, color: 'var(--accent)', background: 'none', border: 'none',
-                        cursor: 'pointer', padding: 0, fontWeight: 500,
-                      }}
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: 11, padding: '2px 8px', height: 'auto' }}
+                      onClick={() => applyLocationToBelow(idx, contact.location)}
                     >
-                      Apply to below ↓
+                      Apply to rows below
                     </button>
                   )}
                 </div>
@@ -243,7 +257,7 @@ export default function BulkAddContacts({ onDone }) {
                     checked={contact.needs_transport}
                     onChange={e => updateContact(idx, 'needs_transport', e.target.checked)}
                   />
-                  🚌 Needs bus
+                  Needs bus
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text-2)' }}>
                   <input
@@ -255,7 +269,7 @@ export default function BulkAddContacts({ onDone }) {
                       else updateContact(idx, 'notes', '');
                     }}
                   />
-                  ✝ Saved
+                  Saved
                 </label>
               </div>
             </div>

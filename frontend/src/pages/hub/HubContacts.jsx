@@ -49,7 +49,7 @@ export default function HubContacts() {
       </div>
       <div className="page-body" style={{ padding: 0 }}>
         {loading ? <PageSkeleton /> : grouped.length === 0 ? (
-          <EmptyState icon="👥" message="No contacts found." />
+          <EmptyState icon={<Icon name="people" size={32} />} message="No contacts found." />
         ) : (
           <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
             {grouped.map(group => (
@@ -69,7 +69,9 @@ export default function HubContacts() {
                       {group.contacts.length} contacts · {group.contacts.filter(c => c.current_status === 'coming').length} confirmed
                     </span>
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{expanded[group.id] ? '▲' : '▼'}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-3)' }}>
+                    <Icon name={expanded[group.id] ? 'chevronDown' : 'chevronRight'} size={16} />
+                  </span>
                 </button>
                 {expanded[group.id] && group.contacts.map(contact => (
                   <div

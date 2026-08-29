@@ -29,6 +29,7 @@ import AuthTopbar                       from '../components/auth/AuthTopbar';
 import AuthProgressBar                  from '../components/auth/AuthProgressBar';
 import ChannelToggle                    from '../components/auth/ChannelToggle';
 import OtpStep                          from '../components/auth/OtpStep';
+import Icon                             from '../components/ui/Icon';
 
 const CAMERA_ICON = (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -343,7 +344,9 @@ export default function SignupPage() {
                         </div>
                       </div>
                       {hubId === h.hub_id && (
-                        <div style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>✓</div>
+                        <div style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                          <Icon name="check" size={18} strokeWidth={2.5} />
+                        </div>
                       )}
                     </div>
                   ))}

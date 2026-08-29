@@ -5,10 +5,10 @@
  */
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import { Spinner, StatusBadge } from '../../components/UI';
+import { Spinner, StatusBadge, Icon } from '../../components/UI';
 
 const STATUS_LABELS = {
-  message_sent:'Message Sent', coming:'Coming ✓', undecided:'Undecided',
+  message_sent:'Message Sent', coming:'Coming', undecided:'Undecided',
   not_coming:'Not Coming', no_answer:'No Answer', wrong_number:'Wrong Number',
   needs_transport:'Needs Transport', unreachable:'Unreachable',
 };
@@ -18,19 +18,27 @@ const STATUS_COLORS = {
   wrong_number:'#94a3b8', unreachable:'#64748b',
 };
 
-export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel = '← Back' }) {
+export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel = 'Back' }) {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter,  setFilter]  = useState('all');
 
   useEffect(() => {
+    if (!volunteerId) return;
     api.getMinisterVolunteerDetail(volunteerId)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [volunteerId]);
 
   if (loading) return <div className="page" style={{ display:'flex', alignItems:'center', justifyContent:'center' }}><Spinner /></div>;
-  if (!data) return <div className="page"><button onClick={onBack} className="btn btn-outline" style={{ marginBottom:24 }}>← Back</button><p style={{ color:'var(--td)', fontSize:13 }}>Volunteer not found.</p></div>;
+  if (!data) return (
+    <div className="page">
+      <button onClick={onBack} className="btn btn-outline" style={{ marginBottom:24, display:'inline-flex', alignItems:'center', gap:6 }}>
+        <Icon name="arrowLeft" size={16} /> Back
+      </button>
+      <p style={{ color:'var(--td)', fontSize:13 }}>Volunteer not found.</p>
+    </div>
+  );
 
   const contacts = data.contacts || [];
   const shown = filter === 'all' ? contacts : contacts.filter(c => c.current_status === filter || (!c.current_status && filter === 'none'));
@@ -39,8 +47,8 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
   return (
     <div className="page">
       <div className="page-header" style={{ paddingBottom:0 }}>
-        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20 }}>
-          {backLabel}
+        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20, display:'flex', alignItems:'center', gap:6 }}>
+          <Icon name="arrowLeft" size={14} /> {backLabel}
         </button>
       </div>
 
@@ -49,7 +57,7 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
         <div style={{ background:'var(--sf)', border:'1px solid var(--bd)', borderRadius:12, padding:'20px 22px', marginBottom:16 }}>
           <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
             <div style={{ width:60, height:60, borderRadius:'50%', flexShrink:0, background:'var(--bg)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26, border:'2px solid var(--bd)' }}>
-              {data.avatar_url ? <img src={data.avatar_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '👤'}
+              {data.avatar_url ? <img src={data.avatar_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <Icon name="person" size={26} style={{ color: 'var(--text-3)' }} />}
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontSize:17, fontWeight:700, marginBottom:3 }}>{data.name || <span style={{ color:'var(--tf)' }}>Unnamed</span>}</div>
@@ -103,7 +111,7 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{c.name}</div>
                     <div style={{ fontSize:11, color:'var(--td)' }}>{c.location}</div>
-                    {c.needs_transport && <div style={{ fontSize:10, color:'var(--amber)', marginTop:2 }}>🚌 Needs transport</div>}
+                    {c.needs_transport && <div style={{ fontSize:10, color:'var(--amber)', marginTop:2, display:'flex', alignItems:'center', gap:4 }}><Icon name="bus" size={12} /> Needs transport</div>}
                   </div>
                   <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
                     {c.current_status && (

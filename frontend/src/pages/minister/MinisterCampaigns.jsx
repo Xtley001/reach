@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import { PageSkeleton, EmptyState } from '../../components/UI';
+import { PageSkeleton, EmptyState, Icon } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 export default function MinisterCampaigns() {
@@ -87,7 +87,7 @@ export default function MinisterCampaigns() {
             </div>
           </div>
         )}
-        {loading ? <PageSkeleton /> : campaigns.length === 0 ? <EmptyState icon="📋" message="No campaigns yet." /> : campaigns.map(c => (
+        {loading ? <PageSkeleton /> : campaigns.length === 0 ? <EmptyState icon={<Icon name="document" size={32} />} message="No campaigns yet." /> : campaigns.map(c => (
           <div key={c.id} className="card">
             {editing === c.id ? (
               <div>

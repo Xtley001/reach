@@ -190,7 +190,7 @@ export default function MinisterDashboard() {
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{d.top_volunteer.name}</div>
               <div style={{ fontSize: 11, color: 'var(--text-2)' }}>{d.top_volunteer.count} contacts</div>
             </div>
-            <span className="badge badge-gold" style={{ marginLeft: 'auto' }}>⭐ Leader</span>
+            <span className="badge badge-gold" style={{ marginLeft: 'auto' }}>Leader</span>
           </div>
         )}
 
@@ -235,8 +235,8 @@ export default function MinisterDashboard() {
         {/* Quick Actions */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[
-            { label: '🚪 Take Attendance', path: '/attend' },
-            { label: '✝️ Log Decisions', path: '/decisions' },
+            { label: 'Take Attendance', path: '/attend' },
+            { label: 'Log Decisions', path: '/decisions' },
           ].map(a => (
             <button key={a.label} className="btn btn-outline btn-sm" onClick={() => navigate(a.path)}>
               {a.label}

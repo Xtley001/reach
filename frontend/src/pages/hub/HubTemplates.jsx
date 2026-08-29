@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import { PageSkeleton, EmptyState } from '../../components/UI';
+import { PageSkeleton, EmptyState, Icon } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 export default function HubTemplates() {
@@ -139,7 +139,7 @@ export default function HubTemplates() {
         )}
 
         {loading ? <PageSkeleton /> : templates.length === 0 ? (
-          <EmptyState icon="💬" message="No templates yet. Create your first one — up to 3 active at a time." />
+          <EmptyState icon={<Icon name="message" size={32} />} message="No templates yet. Create your first one — up to 3 active at a time." />
         ) : templates.map(t => {
           const isOpen = expanded === t.id;
           const lines = t.body.split('\n');

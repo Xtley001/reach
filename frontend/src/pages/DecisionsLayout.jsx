@@ -91,7 +91,7 @@ export default function DecisionsLayout() {
       const plural = form.decision_types.length > 1
         ? `${form.decision_types.length} decisions`
         : '1 decision';
-      toast(`Saved — ${plural} recorded ✓`, 'success');
+      toast(`Saved — ${plural} recorded`, 'success');
       setForm(EMPTY_FORM);
       setBgOpen(false);
       setCount(n => n + form.decision_types.length);
@@ -236,8 +236,7 @@ export default function DecisionsLayout() {
               borderRadius: 'var(--radius-sm)',
               marginBottom: 8,
             }}>
-              {form.decision_types.length} decision type{form.decision_types.length > 1 ? 's' : ''} selected →{' '}
-              {form.decision_types.length} record{form.decision_types.length > 1 ? 's' : ''} will be saved
+              {form.decision_types.length} decision type{form.decision_types.length > 1 ? 's' : ''} selected: {form.decision_types.length} record{form.decision_types.length > 1 ? 's' : ''} will be saved
             </div>
           )}
 
@@ -266,7 +265,7 @@ export default function DecisionsLayout() {
         <div className="form-section collapsible-section">
           <div className="form-section-title" onClick={() => setBgOpen(o => !o)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Background</span>
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{bgOpen ? '▲ hide' : '▼ fill if time allows'}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{bgOpen ? 'Hide' : 'Fill if time allows'}</span>
           </div>
           {bgOpen && (
             <div>

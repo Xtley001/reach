@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
-import { Spinner, StatusBadge } from '../../components/UI';
+import { Spinner, StatusBadge, Icon } from '../../components/UI';
 
 export default function HubDetail({ hubId: propHubId, onBack, onSelectVolunteer }) {
   const { hubId: paramHubId } = useParams();
@@ -18,15 +18,22 @@ export default function HubDetail({ hubId: propHubId, onBack, onSelectVolunteer 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getHubDetail(hubId)
-      .then(d => { setData(d); setLoading(false); })
+    if (!hubId) return;
+    api.getMinisterHubs()
+      .then(d => {
+        const h = (d.hubs || []).find(x => x.hub_id === hubId);
+        setData(h || null);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [hubId]);
 
   if (loading) return <div className="page" style={{ display:'flex', alignItems:'center', justifyContent:'center' }}><Spinner /></div>;
   if (!data)   return (
     <div className="page">
-      <button onClick={handleBack} className="btn btn-outline" style={{ marginBottom:24 }}>← Back</button>
+      <button onClick={handleBack} className="btn btn-outline" style={{ marginBottom:24, display:'inline-flex', alignItems:'center', gap:6 }}>
+        <Icon name="arrowLeft" size={16} /> Back
+      </button>
       <p style={{ color:'var(--td)', fontSize:13 }}>Hub not found.</p>
     </div>
   );
@@ -36,8 +43,8 @@ export default function HubDetail({ hubId: propHubId, onBack, onSelectVolunteer 
   return (
     <div className="page">
       <div className="page-header" style={{ paddingBottom:0 }}>
-        <button onClick={handleBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20 }}>
-          ← All Hubs
+        <button onClick={handleBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20, display:'flex', alignItems:'center', gap:6 }}>
+          <Icon name="arrowLeft" size={14} /> All Hubs
         </button>
       </div>
 
@@ -47,7 +54,7 @@ export default function HubDetail({ hubId: propHubId, onBack, onSelectVolunteer 
           <div style={{ display:'flex', gap:14, alignItems:'center', marginBottom:16 }}>
             {/* Leader avatar */}
             <div style={{ width:56, height:56, borderRadius:'50%', flexShrink:0, background:'var(--bg)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, border:'2px solid var(--bd)' }}>
-              {data.leader_avatar ? <img src={data.leader_avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '👤'}
+              {data.leader_avatar ? <img src={data.leader_avatar} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <Icon name="person" size={24} style={{ color: 'var(--text-3)' }} />}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:16, fontWeight:700, marginBottom:2 }}>{data.hub_name}</div>
@@ -121,7 +128,7 @@ function VolunteerMiniCard({ v, onClick }) {
       onMouseOut={e  => e.currentTarget.style.borderColor='var(--border)'}
     >
       <div style={{ width:38, height:38, borderRadius:'50%', flexShrink:0, background:'var(--bg)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, border:'1px solid var(--bd)' }}>
-        {v.avatar_url ? <img src={v.avatar_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '👤'}
+        {v.avatar_url ? <img src={v.avatar_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <Icon name="person" size={18} style={{ color: 'var(--text-3)' }} />}
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:13, fontWeight:600, marginBottom:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
@@ -129,7 +136,7 @@ function VolunteerMiniCard({ v, onClick }) {
         </div>
         <div style={{ fontSize:11, color:'var(--td)', display:'flex', gap:8 }}>
           <span>{v.total_contacts ?? 0} contacts</span>
-          {v.confirmed > 0 && <span style={{ color:'var(--green)' }}>✓ {v.confirmed}</span>}
+          {v.confirmed > 0 && <span style={{ color:'var(--green)' }}>{v.confirmed} confirmed</span>}
           <span style={{ color:'var(--tf)' }}>Active {lastActive}</span>
         </div>
         <div style={{ marginTop:5, height:2, background:'var(--border)', borderRadius:1, overflow:'hidden', maxWidth:160 }}>

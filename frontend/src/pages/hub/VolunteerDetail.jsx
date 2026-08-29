@@ -6,11 +6,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
-import { Spinner, StatusBadge, ConfirmDialog } from '../../components/UI';
+import { Spinner, StatusBadge, ConfirmDialog, Icon } from '../../components/UI';
 
 const STATUS_LABELS = {
   message_sent:    'Message Sent',
-  coming:          'Coming ✓',
+  coming:          'Coming',
   undecided:       'Undecided',
   not_coming:      'Not Coming',
   no_answer:       'No Answer',
@@ -71,7 +71,9 @@ export default function VolunteerDetail({ volunteerId: propId, onBack: propBack,
 
   if (!data) return (
     <div className="page">
-      <button onClick={onBack} className="btn btn-outline" style={{ marginBottom:24 }}>← Back</button>
+      <button onClick={onBack} className="btn btn-outline" style={{ marginBottom:24, display:'inline-flex', alignItems:'center', gap:6 }}>
+        <Icon name="arrowLeft" size={16} /> Back
+      </button>
       <p style={{ color:'var(--td)', fontSize:13 }}>Volunteer not found.</p>
     </div>
   );
@@ -85,7 +87,7 @@ export default function VolunteerDetail({ volunteerId: propId, onBack: propBack,
       {/* Back */}
       <div className="page-header" style={{ paddingBottom:0 }}>
         <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--td)', fontSize:12, cursor:'pointer', fontFamily:'var(--font-sans)', padding:0, marginBottom:20, display:'flex', alignItems:'center', gap:6 }}>
-          ← All Volunteers
+          <Icon name="arrowLeft" size={14} /> All Volunteers
         </button>
       </div>
 
@@ -95,7 +97,7 @@ export default function VolunteerDetail({ volunteerId: propId, onBack: propBack,
           <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
             {/* Avatar */}
             <div style={{ width:64, height:64, borderRadius:'50%', flexShrink:0, background:'var(--bg)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:28, border:'2px solid var(--bd)' }}>
-              {data.avatar_url ? <img src={data.avatar_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '👤'}
+              {data.avatar_url ? <img src={data.avatar_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <Icon name="person" size={28} style={{ color: 'var(--text-3)' }} />}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:17, fontWeight:700, marginBottom:3 }}>{data.name || <span style={{ color:'var(--tf)' }}>Unnamed</span>}</div>
@@ -187,7 +189,7 @@ export default function VolunteerDetail({ volunteerId: propId, onBack: propBack,
                     <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{c.name}</div>
                     <div style={{ fontSize:11, color:'var(--td)' }}>{c.location || c.phone || '—'}</div>
                     {c.phone && c.location && <div style={{ fontSize:10, color:'var(--tf)', fontFamily:'var(--font-mono)' }}>{c.phone}</div>}
-                    {c.needs_transport && <div style={{ fontSize:10, color:'var(--amber)', marginTop:2 }}>🚌 Needs transport</div>}
+                    {c.needs_transport && <div style={{ fontSize:10, color:'var(--amber)', marginTop:2, display:'flex', alignItems:'center', gap:4 }}><Icon name="bus" size={12} /> Needs transport</div>}
                   </div>
                   <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
                     {c.current_status && (

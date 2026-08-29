@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { cached, TTL } from '../lib/cache';
 import { toast } from '../lib/toast';
 import { useAuth } from '../hooks/useAuth';
-import { StatusBadge } from '../components/UI';
+import { StatusBadge, Icon } from '../components/UI';
 
 export default function AttendLayout() {
   const { user, logout } = useAuth();
@@ -143,12 +143,12 @@ export default function AttendLayout() {
           </div>
         ) : search.length < 2 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-3)', gap: 8 }}>
-            <div style={{ fontSize: 32 }}>🔍</div>
+            <div style={{ color: 'var(--text-3)' }}><Icon name="search" size={32} /></div>
             <div style={{ fontSize: 14 }}>Type at least 2 characters to search</div>
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, color: 'var(--text-3)', gap: 8 }}>
-            <div style={{ fontSize: 32 }}>🤷</div>
+            <div style={{ color: 'var(--text-3)' }}><Icon name="person" size={32} /></div>
             <div style={{ fontSize: 14 }}>No match — use Walk-In</div>
           </div>
         ) : (
@@ -163,7 +163,7 @@ export default function AttendLayout() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                     {c.attended
-                      ? <span style={{ fontSize: 22 }}>✅</span>
+                      ? <span className="badge badge-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="check" size={13} /> Checked In</span>
                       : <StatusBadge status={c.current_status} />
                     }
                   </div>
@@ -187,7 +187,7 @@ export default function AttendLayout() {
                         disabled={checking === c.id}
                         onClick={() => checkIn(c)}
                       >
-                        {checking === c.id ? <div className="spinner" style={{ width: 18, height: 18 }} /> : 'Check In ✓'}
+                        {checking === c.id ? <div className="spinner" style={{ width: 18, height: 18 }} /> : 'Check In'}
                       </button>
                     )}
                   </div>

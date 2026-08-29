@@ -231,7 +231,7 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
           style={{ marginBottom: 8 }}
           onClick={() => navigate('/vol/contacts', { state: { filter: 'needs_message' } })}
         >
-          📱 {pendingMsg} contact{pendingMsg !== 1 ? 's' : ''} waiting for WhatsApp
+          {pendingMsg} contact{pendingMsg !== 1 ? 's' : ''} waiting for WhatsApp
         </button>
       )}
       {queueCount > 0 && (
@@ -240,7 +240,7 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
           style={{ fontSize: 13 }}
           onClick={() => navigate('/vol/queue')}
         >
-          📞 Start Call Queue ({queueCount})
+          Start Call Queue ({queueCount})
         </button>
       )}
 

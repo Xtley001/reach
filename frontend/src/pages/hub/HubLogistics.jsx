@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { cached, invalidate, TTL } from '../../lib/cache';
-import { Spinner, EmptyState, PageSkeleton } from '../../components/UI';
+import { Spinner, EmptyState, PageSkeleton, Icon } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 export default function HubLogistics() {
@@ -57,7 +57,7 @@ export default function HubLogistics() {
       </div>
       <div className="page-body" style={{ padding: 0 }}>
         {logistics.length === 0 ? (
-          <EmptyState icon="🚌" message="No transport requests yet." />
+          <EmptyState icon={<Icon name="bus" size={32} />} message="No transport requests yet." />
         ) : (
           <>
             {pending.length > 0 && (
@@ -105,7 +105,7 @@ function LogisticsRow({ item, onUpdate }) {
           className={`badge ${item.transport_status === 'arranged' ? 'badge-green' : 'badge-amber'}`}
           style={{ cursor: 'pointer', border: 'none', background: undefined }}
         >
-          {item.transport_status === 'arranged' ? 'Arranged ✓' : 'Mark Arranged'}
+          {item.transport_status === 'arranged' ? 'Arranged' : 'Mark Arranged'}
         </button>
       </div>
     </div>

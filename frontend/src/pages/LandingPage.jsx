@@ -81,7 +81,7 @@ export default function LandingPage() {
               style={{ fontSize: 12, color: 'var(--text-3)' }}
               onClick={() => navigate('/hub-login')}
             >
-              Hub Leader Sign In →
+              Hub Leader Sign In
             </button>
           </div>
 
