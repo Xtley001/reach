@@ -33,6 +33,12 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="User not found.")
     if user.status == UserStatus.rejected:
         raise HTTPException(status_code=403, detail="Account rejected.")
+    # D-52: a suspended account must lose access immediately, even with a
+    # still-valid access token sitting in a volunteer's phone — this is the
+    # whole point of "suspended" vs "rejected" (temporary vs permanent), but
+    # it only means something if it's actually enforced at request time.
+    if user.status == UserStatus.suspended:
+        raise HTTPException(status_code=403, detail="Account suspended. Contact your minister.")
     return user
 
 

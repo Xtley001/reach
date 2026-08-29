@@ -28,9 +28,13 @@ class UserRole(str, enum.Enum):
 
 
 class UserStatus(str, enum.Enum):
-    pending  = "pending"
-    active   = "active"
-    rejected = "rejected"
+    pending   = "pending"
+    active    = "active"
+    rejected  = "rejected"
+    # D-52: lets a minister temporarily disable an account (volunteer leaves,
+    # device lost) without permanently rejecting/deleting it — rejected stays
+    # for the "never should have had access" case, suspended is reversible.
+    suspended = "suspended"
 
 
 class CampaignStatus(str, enum.Enum):
@@ -47,6 +51,7 @@ class ContactStatusCode(str, enum.Enum):
     wrong_number    = "wrong_number"
     needs_transport = "needs_transport"
     unreachable     = "unreachable"
+    attended        = "attended"
 
 
 class TransportStatus(str, enum.Enum):
@@ -65,6 +70,24 @@ class FollowUpStatus(str, enum.Enum):
     pending     = "pending"
     in_progress = "in_progress"
     done        = "done"
+
+
+# F-67: two independent, single-select dimensions per call attempt.
+# Receptivity = did the call connect at all. Availability = is the person
+# coming (only meaningful once picked_up — see CallLog.availability_code
+# nullable-until-picked-up below).
+class ReceptivityCode(str, enum.Enum):
+    picked_up      = "picked_up"
+    no_answer      = "no_answer"
+    wrong_number   = "wrong_number"
+    invalid_number = "invalid_number"
+
+
+class AvailabilityCode(str, enum.Enum):
+    coming         = "coming"
+    not_coming     = "not_coming"
+    needs_reminder = "needs_reminder"
+    needs_bus      = "needs_bus"
 
 
 # ─────────────────────────────────────────────
@@ -170,7 +193,6 @@ class User(Base):
     refresh_tokens = relationship("RefreshToken", back_populates="user")
     audit_logs     = relationship("AuditLog", back_populates="user")
 
-
 class Contact(Base):
     __tablename__ = "contacts"
 
@@ -181,7 +203,12 @@ class Contact(Base):
 
     name               = Column(String(100), nullable=False)
     phone              = Column(String(20), nullable=False, comment="E.164 format")
-    location           = Column(String(200), nullable=False)
+    # C-33: location used to be nullable=False, which forced the mass-upload
+    # "paste-first, fill-in-later" flow (see routers/contacts.py
+    # bulk_import_paste) to either fabricate a location or fail outright.
+    # Nullable now; a blank location is exactly the "needs completing" signal
+    # used by `is_incomplete` below, not an error state.
+    location           = Column(String(200), nullable=True)
     notes              = Column(String(1000), nullable=True)
     needs_transport    = Column(Boolean, nullable=False, default=False)
     transport_location = Column(String(200), nullable=True)
@@ -193,6 +220,14 @@ class Contact(Base):
     second_phone    = Column(String(20),  nullable=True)
     attended        = Column(Boolean, nullable=False, default=False)
     attended_at     = Column(DateTime(timezone=True), nullable=True)
+
+    # C-34: explicit column (not just a computed property) so ContactsList
+    # can filter/sort "Finish these {n} contacts" with a plain indexed WHERE
+    # rather than pulling every row into Python to check. Set true at create
+    # time by the paste-import flow when location/notes are blank; can be
+    # cleared by anyone editing the contact later, or recomputed via
+    # `recompute_incomplete()` below.
+    is_incomplete   = Column(Boolean, nullable=False, default=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
@@ -218,12 +253,23 @@ class Contact(Base):
     logistics        = relationship("Logistics", back_populates="contact", uselist=False)
     follow_up_queues = relationship("FollowUpQueue", back_populates="contact")
     attendances      = relationship("Attendance", back_populates="contact")
+    tags             = relationship("ContactTag", back_populates="contact",
+                                     cascade="all, delete-orphan")
+    call_logs        = relationship("CallLog", back_populates="contact",
+                                     order_by=lambda: CallLog.called_at,
+                                     cascade="all, delete-orphan")
 
     @property
     def current_status(self):
         if self.statuses:
             return self.statuses[-1].status_code
         return None
+
+    def recompute_incomplete(self):
+        """C-34: single place that decides what 'incomplete' means, so the
+        paste-import flow and any future editing UI agree on the same rule."""
+        self.is_incomplete = not bool(self.location) or self.name in (None, "", "Unnamed contact")
+        return self.is_incomplete
 
 
 class ContactStatus(Base):
@@ -244,6 +290,106 @@ class ContactStatus(Base):
         Index("ix_contact_statuses_updated_by",     "updated_by"),
         Index("ix_contact_statuses_contact_updated","contact_id", "updated_at"),
         Index("ix_contact_statuses_code",           "status_code"),
+    )
+
+
+class TagDefinition(Base):
+    """
+    B-17: config-driven tag list instead of a hardcoded ContactStatusCode-style
+    enum / Postgres CheckConstraint. Church leadership can rename/add tags via
+    the admin UI (routers/management.py) without a migration — the *set of
+    columns* (code/label/color/icon/active) is fixed by a migration, but the
+    *rows* are just data.
+
+    Seeded on first migration with: saved, form_filled, healed,
+    needs_followup, attended (see alembic revision 20260824_contact_tags).
+    """
+    __tablename__ = "tag_definitions"
+
+    id              = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    organisation_id = Column(UUID(as_uuid=False), ForeignKey("organisations.id"), nullable=False)
+    code            = Column(String(40),  nullable=False)
+    label           = Column(String(60),  nullable=False)
+    color           = Column(String(20),  nullable=True)   # e.g. "#22C55E" or a token name
+    icon            = Column(String(30),  nullable=True)   # Icon.jsx name, e.g. "flame"
+    is_active       = Column(Boolean, nullable=False, default=True)
+    sort_order      = Column(Integer, nullable=False, default=0)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("organisation_id", "code", name="uq_tag_definitions_org_code"),
+        Index("ix_tag_definitions_org_active", "organisation_id", "is_active"),
+    )
+
+
+class ContactTag(Base):
+    """
+    B-16: many-to-many outcome tags. Deliberately NOT overloading
+    ContactStatusCode (single-value) — a contact can be `saved` AND
+    `form_filled` AND `healed` at once. "Tap 2-3 things quickly, none
+    required, can change later."
+    """
+    __tablename__ = "contact_tags"
+
+    id         = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    contact_id = Column(UUID(as_uuid=False), ForeignKey("contacts.id"), nullable=False)
+    tag_code   = Column(String(40), nullable=False)
+    set_by     = Column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    set_at     = Column(DateTime(timezone=True), server_default=func.now())
+    # B-27: optional note per tag application — never required.
+    note       = Column(String(300), nullable=True)
+
+    contact       = relationship("Contact", back_populates="tags")
+    set_by_user   = relationship("User")
+
+    __table_args__ = (
+        # B-19: idempotent writes — toggling the same tag twice never
+        # duplicates a row. The endpoint layer (routers/contacts.py) treats a
+        # unique-violation on add as a no-op success, not an error.
+        UniqueConstraint("contact_id", "tag_code", name="uq_contact_tags_contact_code"),
+        Index("ix_contact_tags_contact_id", "contact_id"),
+        Index("ix_contact_tags_code",       "tag_code"),
+    )
+
+
+class CallLog(Base):
+    """
+    F-66: append-only call history — every attempt is its own row, so a
+    leader can see "3 no-answers, then picked up, coming, needs bus" as a
+    timeline (routers/dashboard.py call-timeline endpoint), not just a single
+    mutable "current status" the way contact_statuses worked.
+    """
+    __tablename__ = "call_logs"
+
+    id                = Column(UUID(as_uuid=False), primary_key=True, default=new_uuid)
+    contact_id        = Column(UUID(as_uuid=False), ForeignKey("contacts.id"), nullable=False)
+    called_by         = Column(UUID(as_uuid=False), ForeignKey("users.id"), nullable=False)
+    called_at         = Column(DateTime(timezone=True), server_default=func.now())
+    receptivity_code  = Column(Enum(ReceptivityCode), nullable=False)
+    # F-67: stays null until receptivity_code == picked_up — no point asking
+    # "are they coming" if the call never connected. Enforced at the API
+    # layer (routers/call_logs.py), not just left to convention.
+    availability_code = Column(Enum(AvailabilityCode), nullable=True)
+    # F-70: one optional single-line comment, never required, always visible.
+    comment           = Column(String(280), nullable=True)
+    # F-76: optional "call back at" reminder time, surfaced back into the
+    # volunteer's own call queue — small, not required, easy to skip. Only
+    # meaningful when availability_code == needs_reminder, but not DB-enforced
+    # (unlike the pickup/availability rule) since a volunteer might set a
+    # reminder time after the fact via editing, and that's fine.
+    remind_at         = Column(DateTime(timezone=True), nullable=True)
+
+    contact        = relationship("Contact", back_populates="call_logs")
+    called_by_user = relationship("User")
+
+    __table_args__ = (
+        CheckConstraint(
+            "(availability_code IS NULL) OR (receptivity_code = 'picked_up')",
+            name="chk_call_logs_availability_requires_pickup",
+        ),
+        Index("ix_call_logs_contact_id",         "contact_id"),
+        Index("ix_call_logs_contact_called_at",  "contact_id", "called_at"),
+        Index("ix_call_logs_called_by",          "called_by"),
     )
 
 
@@ -423,6 +569,10 @@ class Attendance(Base):
         Index("ix_attendances_source",     "source"),
         Index("ix_attendances_checked_in", "checked_in_at"),
     )
+
+
+# Alias for legacy compatibility
+AttendanceRecord = Attendance
 
 
 # ─── New: Decision ────────────────────────────────────────────────────────────

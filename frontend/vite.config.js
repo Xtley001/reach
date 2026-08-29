@@ -25,4 +25,9 @@ export default defineConfig({
       },
     },
   },
+  // G-86: vitest config for the session-refresh integration test.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
 });

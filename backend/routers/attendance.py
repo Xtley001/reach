@@ -402,14 +402,14 @@ async def undo_check_in(
     contact.attended_at = None
 
     # Remove the most recent attendance record for this contact
-    from sqlalchemy import delete
-    db.query(Attendance).filter(
+    last_att = db.query(Attendance).filter(
         Attendance.contact_id == contact.id,
         Attendance.campaign_id == campaign.id,
-    ).order_by(Attendance.checked_in_at.desc()).limit(1).delete(synchronize_session=False)
+    ).order_by(Attendance.checked_in_at.desc()).first()
+    if last_att:
+        db.delete(last_att)
 
     db.commit()
     log_action(db, user, "attendance.undo", entity_type="contact",
                entity_id=body.contact_id, ip_address=get_client_ip(request))
-    db.commit()
     return {"undone": True, "contact_name": contact.name}

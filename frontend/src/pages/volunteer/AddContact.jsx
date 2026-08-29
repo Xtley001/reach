@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { api } from '../../lib/api';
 import { invalidateAll } from '../../lib/cache';
+import { queueSync } from '../../lib/offline';
 import { toast } from '../../lib/toast';
 import { confettiBurst } from '../../lib/confetti';
 
@@ -23,16 +24,31 @@ export default function AddContact({ onDone }) {
     if (!form.phone.trim()) { toast('Phone is required', 'error'); return; }
     if (!form.location.trim()) { toast('Location is required', 'error'); return; }
 
+    const payload = {
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      location: form.location.trim(),
+      notes: form.notes.trim() || null,
+      needs_transport: form.needs_transport,
+      transport_location: form.needs_transport ? form.transport_location.trim() : null,
+    };
+
     setLoading(true);
+
+    if (!navigator.onLine) {
+      try {
+        await queueSync(payload);
+        toast('Saved offline — will sync when connected', 'gold');
+        setTimeout(onDone, 600);
+      } catch (err) {
+        toast('Failed to save offline: ' + err.message, 'error');
+      }
+      setLoading(false);
+      return;
+    }
+
     try {
-      await api.addContact({
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        location: form.location.trim(),
-        notes: form.notes.trim() || null,
-        needs_transport: form.needs_transport,
-        transport_location: form.needs_transport ? form.transport_location.trim() : null,
-      });
+      await api.addContact(payload);
       invalidateAll('contacts:');
       confettiBurst(saveBtnRef.current);
       toast('Contact saved!', 'gold');
@@ -41,6 +57,15 @@ export default function AddContact({ onDone }) {
       const msg = e.message || '';
       if (msg.includes('already been added') || msg.includes('409')) {
         setPhoneConflict(msg);
+      } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        // Network drop during request — queue offline
+        try {
+          await queueSync(payload);
+          toast('Saved offline — will sync when connected', 'gold');
+          setTimeout(onDone, 600);
+        } catch {
+          toast('Network error — please retry', 'error');
+        }
       } else {
         toast(msg || 'Failed to save contact', 'error');
       }

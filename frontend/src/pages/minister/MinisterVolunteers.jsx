@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { cached, invalidate, TTL } from '../../lib/cache';
-import { StatusBadge, Spinner, PageSkeleton, Modal } from '../../components/UI';
+import { StatusBadge, Spinner, PageSkeleton, Modal, EmptyState, Icon, PageHeader } from '../../components/UI';
 import { toast } from '../../lib/toast';
 // FIX-002: Import MinisterVolunteerDetail
 import MinisterVolunteerDetail from './MinisterVolunteerDetail';
@@ -72,15 +72,15 @@ export default function MinisterVolunteers() {
 
   return (
     <div className="page">
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div>
-          <div className="page-title">Volunteers</div>
-          <div className="page-subtitle">{volunteers.length} total</div>
-        </div>
-        <button className="btn btn-primary btn-sm" onClick={() => { setShowInvite(true); setInviteResult(null); }}>
-          + Invite Hub Leader
-        </button>
-      </div>
+      <PageHeader
+        title="Volunteers"
+        subtitle={`${volunteers.length} total`}
+        action={
+          <button className="btn btn-primary btn-sm" onClick={() => { setShowInvite(true); setInviteResult(null); }}>
+            <Icon name="plus" size={14} /> Invite Hub Leader
+          </button>
+        }
+      />
 
       <div className="page-body" style={{ padding: 0 }}>
         <div style={{ padding: '0 var(--space-4)' }}>
@@ -105,9 +105,7 @@ export default function MinisterVolunteers() {
         </div>
 
         {loading ? <PageSkeleton /> : filteredVolunteers.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-msg">No volunteers match this filter.</div>
-          </div>
+          <EmptyState icon={<Icon name="people" size={32} />} message="No volunteers match this filter." />
         ) : (
           <div>
             {filteredVolunteers.map(v => (

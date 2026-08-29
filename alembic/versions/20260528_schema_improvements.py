@@ -1,5 +1,18 @@
-"""Schema improvements: hub_id on contacts, attended status, demographics view with hub dimension, leader_id on hubs"""
+"""Schema improvements: hub_id on contacts, attended status, demographics view with hub dimension, leader_id on hubs
+
+Revision ID: 20260528_schema
+Revises: 20260527_hub_loc
+Create Date: 2026-05-28
+"""
 from alembic import op
+
+# E-58: same missing-identifier bug as 20260527 — fixed here too so the full
+# chain (a1b2c3d4e5f6 -> 20260527_hub_loc -> 20260528_schema -> ...) actually
+# resolves under `alembic upgrade head`.
+revision = '20260528_schema'
+down_revision = '20260527_hub_loc'
+branch_labels = None
+depends_on = None
 
 
 def upgrade():

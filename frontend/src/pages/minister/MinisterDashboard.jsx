@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cached, TTL } from '../../lib/cache';
-import { PageSkeleton, Modal } from '../../components/UI';
+import { PageSkeleton, Modal, TagCountsChart, ReceptivityChart, AvailabilityChart } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 function Countdown({ targetDate }) {
@@ -165,6 +165,18 @@ export default function MinisterDashboard() {
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
               {Math.round(((data.total_contacts || 0) / data.target_count) * 100)}% of target reached
+            </div>
+          </div>
+        )}
+
+        {/* B-26/F-74: per-tag outcome counts + call receptivity/availability
+            rollups — two small clean charts instead of one messy one. */}
+        {(d.tag_counts || d.call_rollups) && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)' }}>
+            <TagCountsChart tagCounts={d.tag_counts} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+              <ReceptivityChart callRollups={d.call_rollups} />
+              <AvailabilityChart callRollups={d.call_rollups} />
             </div>
           </div>
         )}

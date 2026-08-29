@@ -25,7 +25,7 @@ function MoonIcon() {
 }
 
 export function ThemeToggle({ className = '' }) {
-  const [dark, setDark] = useTheme();
+  const [dark, setDark] = useTheme(); // A-5: now system-preference-aware, see hooks/useTheme.js
   return (
     <button
       className={`btn btn-ghost btn-icon ${className}`}

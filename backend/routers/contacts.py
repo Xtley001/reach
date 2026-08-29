@@ -15,21 +15,26 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Query, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
 
 from ..database import get_db
 from ..models import (
     Contact, ContactStatus, ContactStatusCode, MessageSend,
-    MessageTemplate, Logistics, User, UserRole, Campaign, CampaignStatus
+    MessageTemplate, Logistics, User, UserRole, Campaign, CampaignStatus,
+    ContactTag, TagDefinition
 )
 from ..schemas import (
     ContactCreate, ContactBulkCreate, ContactSyncBatch,
     ContactListItem, ContactDetail, StatusUpdate,
-    MessageSendLog, ContactSyncResult
+    MessageSendLog, ContactSyncResult,
+    TagDefinitionOut, TagToggleRequest, ContactTagOut,
+    PasteImportRequest, PasteImportResponse, PasteImportResultRow,
 )
 from ..dependencies import (
     get_current_user, require_hub_leader,
     verify_contact_ownership, log_action, get_client_ip
 )
+from ..limiter import limiter
 
 router = APIRouter(tags=["contacts"])
 
@@ -56,12 +61,200 @@ def _contact_list_item(contact: Contact, db: Session) -> ContactListItem:
     return ContactListItem(
         id=contact.id,
         name=contact.name,
+        phone=contact.phone,
         location=contact.location,
         needs_transport=contact.needs_transport,
         current_status=latest_status,
         message_sent_count=send_count,
         created_at=contact.created_at,
+        # B-21: tags surfaced on the list item so ContactsList can render
+        # chips without a per-row round trip.
+        tags=[t.tag_code for t in contact.tags],
+        is_incomplete=contact.is_incomplete,
     )
+
+
+# ─── B: Contact outcome tags ───────────────────────────────────────────────────
+
+@router.get("/contacts/{contact_id}/tags")
+async def get_contact_tags(
+    contact_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=403, detail="Access denied")
+    verify_contact_ownership(contact, user, db)
+    return {
+        "tags": [
+            ContactTagOut(
+                tag_code=t.tag_code, set_by=t.set_by, set_at=t.set_at, note=t.note
+            ).model_dump()
+            for t in contact.tags
+        ]
+    }
+
+
+@router.post("/contacts/{contact_id}/tags", status_code=200)
+async def toggle_contact_tag(
+    contact_id: str,
+    body: TagToggleRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    B-18/19/22: toggle add/remove — idempotent and non-blocking. A volunteer
+    tapping the same chip twice in a row (double-tap, flaky network retry,
+    optimistic-UI rollback-then-retry) must never 500 or create a duplicate
+    row; it should behave as "make sure this tag is/isn't set" rather than
+    "add a new tag application".
+    """
+    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=403, detail="Access denied")
+    verify_contact_ownership(contact, user, db)
+
+    valid_codes = {
+        d.code for d in db.query(TagDefinition).filter(
+            TagDefinition.organisation_id == user.organisation_id,
+            TagDefinition.is_active == True,  # noqa: E712
+        ).all()
+    }
+    if body.tag_code not in valid_codes:
+        raise HTTPException(status_code=400, detail=f"Unknown or inactive tag: {body.tag_code}")
+
+    existing = db.query(ContactTag).filter(
+        ContactTag.contact_id == contact_id,
+        ContactTag.tag_code == body.tag_code,
+    ).first()
+
+    if existing:
+        # Toggle off.
+        db.delete(existing)
+        db.commit()
+        action = "removed"
+    else:
+        tag = ContactTag(
+            contact_id=contact_id, tag_code=body.tag_code,
+            set_by=user.id, note=body.note,
+        )
+        db.add(tag)
+        try:
+            db.commit()
+            action = "added"
+        except IntegrityError:
+            # B-19: a concurrent request already added this exact tag (race
+            # between two rapid taps) — unique constraint caught it. Treat as
+            # success, not an error; the end state ("tag is set") is correct.
+            db.rollback()
+            action = "added"
+
+    # B-20: reuse the existing AuditLog path — don't invent a second one.
+    log_action(
+        db, user, f"contact.tag_{action}", "contact", contact_id,
+        get_client_ip(request), metadata={"tag_code": body.tag_code},
+    )
+
+    return {"tag_code": body.tag_code, "action": action}
+
+
+@router.get("/tag-definitions")
+async def list_tag_definitions(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """B-17: config-driven tag list — frontend renders exactly these chips,
+    in this order, instead of a hardcoded set baked into the bundle."""
+    defs = db.query(TagDefinition).filter(
+        TagDefinition.organisation_id == user.organisation_id,
+        TagDefinition.is_active == True,  # noqa: E712
+    ).order_by(TagDefinition.sort_order).all()
+    return {"tags": [
+        TagDefinitionOut(code=d.code, label=d.label, color=d.color, icon=d.icon, sort_order=d.sort_order).model_dump()
+        for d in defs
+    ]}
+
+
+# ─── C: Mass upload — paste-to-import ──────────────────────────────────────────
+
+MAX_PASTE_ROWS = 500  # C-36: cap paste size with a clear error, not a silent hang
+
+
+@router.post("/contacts/bulk-paste", response_model=PasteImportResponse, status_code=201)
+@limiter.limit("10/minute")
+async def bulk_paste_import(
+    request: Request,
+    body: PasteImportRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    C-30/31/32/33/34/35: the paste-and-preview parsing itself happens
+    client-side (lib/pasteParse.js) so it's instant and works on spotty
+    church wifi (C-37) — this endpoint only receives already-normalised
+    E.164 phone numbers (validated again server-side via PasteImportRow's
+    validator, never trust the client) and creates minimal "incomplete"
+    contact records.
+    """
+    if len(body.rows) > MAX_PASTE_ROWS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Too many rows in one paste ({len(body.rows)}). Split into batches of {MAX_PASTE_ROWS} or fewer.",
+        )
+    if not body.rows:
+        raise HTTPException(status_code=422, detail="No rows to import.")
+
+    campaign = _active_campaign(user, db)
+
+    phones = [r.phone for r in body.rows]
+    existing_rows = db.query(Contact.phone).filter(
+        Contact.phone.in_(phones),
+        Contact.campaign_id == campaign.id,
+    ).all()
+    existing_phones = {row.phone for row in existing_rows}
+
+    results: List[PasteImportResultRow] = []
+    seen_in_batch = set()
+
+    for row in body.rows:
+        if row.phone in existing_phones or row.phone in seen_in_batch:
+            results.append(PasteImportResultRow(phone=row.phone, status="duplicate", message="Already in campaign or paste"))
+            continue
+        seen_in_batch.add(row.phone)
+
+        # C-33: location intentionally left blank — nullable now, this is
+        # exactly the "needs completing" signal, not an error state.
+        contact = Contact(
+            campaign_id=campaign.id,
+            added_by=user.id,
+            organisation_id=user.organisation_id,
+            name=row.name or "Unnamed contact",
+            phone=row.phone,
+            location=None,
+            source="volunteer",
+        )
+        contact.recompute_incomplete()
+        try:
+            with db.begin_nested():
+                db.add(contact)
+                db.flush()
+            results.append(PasteImportResultRow(phone=row.phone, status="saved", id=contact.id))
+        except IntegrityError:
+            results.append(PasteImportResultRow(phone=row.phone, status="error", message="Could not save this number"))
+            continue
+
+    db.commit()
+    saved = sum(1 for r in results if r.status == "saved")
+    skipped = len(results) - saved
+
+    log_action(
+        db, user, "contact.bulk_paste_imported", ip_address=get_client_ip(request),
+        metadata={"saved": saved, "skipped": skipped, "total": len(body.rows)},
+    )
+
+    return PasteImportResponse(saved=saved, skipped=skipped, results=results)
 
 
 # ─── Add Single Contact ───────────────────────────────────────────────────────
@@ -188,7 +381,8 @@ async def bulk_add_contacts(
 
 @router.get("/contacts")
 async def list_contacts(
-    filter: Optional[str] = Query(None, description="all|needs_call|confirmed|undecided|issues"),
+    filter: Optional[str] = Query(None, description="all|needs_call|confirmed|undecided|issues|incomplete|tag"),
+    tag: Optional[str] = Query(None, description="tag_code, used with filter=tag; also usable as A-25/B-25 filter chip"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -201,6 +395,7 @@ async def list_contacts(
     query = db.query(Contact).options(
         joinedload(Contact.statuses),
         joinedload(Contact.message_sends),
+        joinedload(Contact.tags),
     ).filter(
         Contact.added_by == user.id,
         Contact.campaign_id == campaign.id,
@@ -220,11 +415,19 @@ async def list_contacts(
             ContactStatusCode.undecided, None
         ):
             continue
+        elif filter == "needs_message" and (item.message_sent_count > 0 or item.current_status == ContactStatusCode.not_coming):
+            continue
         elif filter == "undecided" and item.current_status != ContactStatusCode.undecided:
             continue
         elif filter == "issues" and item.current_status not in (
             ContactStatusCode.wrong_number, ContactStatusCode.not_coming
         ):
+            continue
+        # C-34/38: "Finish these {n} contacts" — the paste-import flow's
+        # very next tap should land here, not on a dead-end success screen.
+        elif filter == "incomplete" and not item.is_incomplete:
+            continue
+        elif filter == "tag" and tag and (tag not in item.tags):
             continue
 
         items.append(item)
@@ -271,6 +474,8 @@ async def get_contact(
         current_status=latest_status,
         message_sent_count=len(contact.message_sends),
         created_at=contact.created_at,
+        tags=[t.tag_code for t in contact.tags],
+        is_incomplete=contact.is_incomplete,
     ).model_dump()
 
 
@@ -415,44 +620,47 @@ async def sync_contacts(
     results: List[ContactSyncResult] = []
 
     for c in body.contacts:
+        local_id = getattr(c, "local_id", None)
         try:
-            existing = db.query(Contact).filter(
-                Contact.phone == c.phone,
-                Contact.campaign_id == campaign.id,
-            ).first()
+            with db.begin_nested():
+                existing = db.query(Contact).filter(
+                    Contact.phone == c.phone,
+                    Contact.campaign_id == campaign.id,
+                ).first()
 
-            if existing:
-                results.append(ContactSyncResult(
-                    local_id=c.local_id,
-                    server_id=existing.id,
-                    status="duplicate",
-                    message="Already in campaign",
-                ))
-                continue
+                if existing:
+                    results.append(ContactSyncResult(
+                        local_id=local_id,
+                        server_id=existing.id,
+                        status="duplicate",
+                        message="Already in campaign",
+                    ))
+                    continue
 
-            contact = Contact(
-                campaign_id=campaign.id,
-                added_by=user.id,
-                organisation_id=user.organisation_id,
-                name=c.name,
-                phone=c.phone,
-                location=c.location,
-                notes=c.notes,
-                needs_transport=c.needs_transport,
-                transport_location=c.transport_location,
-            )
-            db.add(contact)
-            db.flush()  # API-08: flush not commit — keep atomic per contact
+                contact = Contact(
+                    campaign_id=campaign.id,
+                    added_by=user.id,
+                    organisation_id=user.organisation_id,
+                    name=c.name,
+                    phone=c.phone,
+                    location=c.location,
+                    notes=c.notes,
+                    needs_transport=c.needs_transport,
+                    transport_location=c.transport_location,
+                )
+                db.add(contact)
+                db.flush()
 
-            if c.needs_transport:
-                db.add(Logistics(contact_id=contact.id, organisation_id=user.organisation_id))
+                if c.needs_transport:
+                    db.add(Logistics(contact_id=contact.id, organisation_id=user.organisation_id))
+                    db.flush()
 
-            db.commit()  # API-08: one commit per contact with individual rollback on failure
-            results.append(ContactSyncResult(local_id=c.local_id, server_id=contact.id, status="synced"))
+                results.append(ContactSyncResult(local_id=local_id, server_id=contact.id, status="synced"))
 
-        except Exception:
-            db.rollback()
-            results.append(ContactSyncResult(local_id=c.local_id, status="error", message="Save failed"))
+        except Exception as e:
+            results.append(ContactSyncResult(local_id=local_id, status="error", message=str(e) or "Save failed"))
+
+    db.commit()
 
     synced = sum(1 for r in results if r.status == "synced")
     log_action(db, user, "contact.synced", ip_address=get_client_ip(request), metadata={"synced": synced})

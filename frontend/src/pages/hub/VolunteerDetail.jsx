@@ -4,6 +4,7 @@
  * Opened when hub leader clicks a volunteer card.
  */
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { Spinner, StatusBadge, ConfirmDialog } from '../../components/UI';
 
@@ -28,7 +29,12 @@ const STATUS_COLORS = {
   unreachable:     '#64748b',
 };
 
-export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
+export default function VolunteerDetail({ volunteerId: propId, onBack: propBack, onReload }) {
+  const params = useParams();
+  const navigate = useNavigate();
+  const volunteerId = propId || params.volId;
+  const onBack = propBack || (() => navigate('/hub/volunteers'));
+
   const [data,       setData]       = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [confirming, setConfirming] = useState(null);
@@ -36,6 +42,7 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
   const [filter,     setFilter]     = useState('all');
 
   useEffect(() => {
+    if (!volunteerId) return;
     api.getVolunteerDetail(volunteerId)
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -44,9 +51,11 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
   async function handleAction(action) {
     setActing(true);
     try {
-      if (action === 'approve')      await api.approveVolunteer(volunteerId);
-      else if (action === 'reject')  await api.rejectVolunteer(volunteerId);
-      else if (action === 'logout')  await api.forceLogout(volunteerId);
+      if (action === 'approve')        await api.approveVolunteer(volunteerId);
+      else if (action === 'reject')    await api.rejectVolunteer(volunteerId);
+      else if (action === 'suspend')   await api.suspendVolunteer(volunteerId);
+      else if (action === 'unsuspend') await api.unsuspendVolunteer(volunteerId);
+      else if (action === 'logout')    await api.forceLogout(volunteerId);
       if (onReload) onReload();
       onBack();
     } catch {}
@@ -195,7 +204,7 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
         }
 
         {/* Danger zone */}
-        {data.status === 'active' && (
+        {(data.status === 'active' || data.status === 'suspended') && (
           <div style={{ marginTop:32, paddingTop:20, borderTop:'1px solid var(--bd)' }}>
             <div style={{ fontSize:11, color:'var(--tf)', marginBottom:12, textTransform:'uppercase', letterSpacing:'.1em' }}>Actions</div>
             <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
@@ -203,10 +212,17 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
                 style={{ padding:'8px 16px', borderRadius:6, background:'transparent', border:'1px solid rgba(var(--red-rgb, 176,58,46),.25)', color:'var(--red)', fontSize:11, cursor:'pointer', fontFamily:'var(--font-sans)' }}>
                 Force Sign Out
               </button>
-              <button onClick={() => setConfirming({ action:'reject' })}
-                style={{ padding:'8px 16px', borderRadius:6, background:'transparent', border:'1px solid rgba(var(--red-rgb, 176,58,46),.25)', color:'var(--red)', fontSize:11, cursor:'pointer', fontFamily:'var(--font-sans)' }}>
-                Suspend Account
-              </button>
+              {data.status === 'active' ? (
+                <button onClick={() => setConfirming({ action:'suspend' })}
+                  style={{ padding:'8px 16px', borderRadius:6, background:'transparent', border:'1px solid rgba(var(--red-rgb, 176,58,46),.25)', color:'var(--red)', fontSize:11, cursor:'pointer', fontFamily:'var(--font-sans)' }}>
+                  Suspend Account
+                </button>
+              ) : (
+                <button onClick={() => setConfirming({ action:'unsuspend' })}
+                  style={{ padding:'8px 16px', borderRadius:6, background:'rgba(48,209,88,0.12)', border:'1px solid var(--green)', color:'var(--green)', fontSize:11, cursor:'pointer', fontFamily:'var(--font-sans)' }}>
+                  Reactivate Account
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -214,10 +230,10 @@ export default function VolunteerDetail({ volunteerId, onBack, onReload }) {
 
       <ConfirmDialog
         open={!!confirming}
-        title={confirming?.action === 'approve' ? 'Approve volunteer?' : confirming?.action === 'logout' ? 'Force sign out?' : 'Suspend account?'}
-        message={confirming?.action === 'approve' ? 'They will be able to log in and add contacts.' : confirming?.action === 'logout' ? 'All their active sessions will be terminated immediately.' : 'Their account will be suspended. They will lose access immediately.'}
-        confirmLabel={confirming?.action === 'approve' ? 'Approve' : confirming?.action === 'logout' ? 'Sign Out' : 'Suspend'}
-        danger={confirming?.action !== 'approve'}
+        title={confirming?.action === 'approve' ? 'Approve volunteer?' : confirming?.action === 'logout' ? 'Force sign out?' : confirming?.action === 'unsuspend' ? 'Reactivate account?' : 'Suspend account?'}
+        message={confirming?.action === 'approve' ? 'They will be able to log in and add contacts.' : confirming?.action === 'logout' ? 'All their active sessions will be terminated immediately.' : confirming?.action === 'unsuspend' ? 'Their account will be reactivated and they can log in again.' : 'Their account will be suspended. They will lose access immediately.'}
+        confirmLabel={confirming?.action === 'approve' ? 'Approve' : confirming?.action === 'logout' ? 'Sign Out' : confirming?.action === 'unsuspend' ? 'Reactivate' : 'Suspend'}
+        danger={confirming?.action !== 'approve' && confirming?.action !== 'unsuspend'}
         loading={acting}
         onConfirm={() => handleAction(confirming.action)}
         onCancel={() => setConfirming(null)}

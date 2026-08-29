@@ -1,27 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useTheme } from '../hooks/useTheme';
 
-// P1-3.1: Reactive theme state — listens to reach:theme event so icon updates
-// on toggle even when multiple instances exist on the same page.
+// A-5: this file used to read/write localStorage directly and dispatch its
+// own 'reach:theme' event, duplicating logic that also lived in
+// hooks/useTheme.js and public/theme-init.js — three places that could (and
+// did) drift out of sync on system-preference support. Now a thin wrapper
+// around the single shared useTheme() hook, kept as the default export so
+// every existing `import ThemeToggle from '../components/ThemeToggle'` call
+// site across the app keeps working unchanged.
 export default function ThemeToggle() {
-  const [isDark, setIsDark] = useState(
-    () => document.documentElement.getAttribute('data-theme') === 'dark'
-  );
-
-  useEffect(() => {
-    const handler = (e) => setIsDark(e.detail === 'dark');
-    window.addEventListener('reach:theme', handler);
-    return () => window.removeEventListener('reach:theme', handler);
-  }, []);
-
-  function toggle() {
-    const next = isDark ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
-    try { localStorage.setItem('reach-theme', next); } catch {}
-    window.dispatchEvent(new CustomEvent('reach:theme', { detail: next }));
-  }
+  const [isDark, setIsDark] = useTheme();
 
   return (
-    <button className="theme-toggle" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
+    <button
+      className="theme-toggle"
+      onClick={() => setIsDark(!isDark)}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
       {isDark ? (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="5"/>

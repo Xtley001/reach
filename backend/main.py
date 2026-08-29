@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 import time
@@ -14,6 +14,7 @@ import logging
 from .config import settings
 from .database import engine, Base, SessionLocal
 from .models import *  # noqa
+from .limiter import limiter, _get_real_ip
 
 from .routers.auth import router as auth_router, onboarding_router
 from .routers.invites import router as invites_router, admin_router as admin_invite_router
@@ -24,19 +25,13 @@ from .routers.dashboard import router as dashboard_router
 from .routers.management import hub_router, minister_router, campaign_router
 from .routers.attendance import router as attendance_router
 from .routers.decisions import router as decisions_router
+from .routers.call_logs import router as call_logs_router
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("reach")
-
-
-def _get_real_ip(request: Request) -> str:
-    fwd = request.headers.get("X-Forwarded-For", "")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
 
 
 if getattr(settings, "SENTRY_DSN", None):
@@ -54,7 +49,7 @@ if getattr(settings, "SENTRY_DSN", None):
     except Exception as e:
         logger.warning(f"Sentry init failed: {e}")
 
-limiter = Limiter(key_func=_get_real_ip, default_limits=["300/minute"])
+# D-42: limiter now lives in backend/limiter.py (shared with routers, Redis-backed).
 
 
 @asynccontextmanager
@@ -222,6 +217,7 @@ app.include_router(minister_router,    prefix=V1)
 app.include_router(campaign_router,    prefix=V1)
 app.include_router(attendance_router,  prefix=V1)
 app.include_router(decisions_router,   prefix=V1)
+app.include_router(call_logs_router,   prefix=V1)
 
 
 @app.get("/health", include_in_schema=False)

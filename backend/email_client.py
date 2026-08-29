@@ -35,7 +35,7 @@ def _headers() -> dict:
     return {
         "accept":       "application/json",
         "content-type": "application/json",
-        "api-key":      settings.brevo_api_key,
+        "api-key":      settings.BREVO_API_KEY,
     }
 
 
@@ -122,8 +122,8 @@ async def send_otp(to: str, otp: str) -> bool:
     Returns True on success, False on any failure.
     Logs the full Brevo error response on failure for easy debugging.
     """
-    api_key = settings.brevo_api_key
-    sender  = settings.brevo_sender
+    api_key = settings.BREVO_API_KEY
+    sender  = settings.BREVO_SENDER
 
     if not api_key:
         logger.error(
@@ -178,8 +178,8 @@ async def send_mirror(admin_email: str, otp: str, target: str) -> None:
     Mirror every OTP to the admin inbox so delivery can be verified remotely.
     Failures are logged as warnings — never block the main OTP flow.
     """
-    api_key = settings.brevo_api_key
-    sender  = settings.brevo_sender
+    api_key = settings.BREVO_API_KEY
+    sender  = settings.BREVO_SENDER
 
     if not api_key or not sender:
         logger.warning("Mirror skipped — Brevo not configured")

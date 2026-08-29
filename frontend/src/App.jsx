@@ -13,8 +13,6 @@ import PrivacyPage    from './pages/PrivacyPage';
 import LandingPage    from './pages/LandingPage';
 import LoginPage      from './pages/LoginPage';
 import SignupPage     from './pages/SignupPage';
-import HubLoginPage   from './pages/HubLoginPage';
-import AdminLoginPage from './pages/AdminLoginPage';
 import JoinPage       from './pages/JoinPage';
 import PendingScreen  from './pages/PendingScreen';
 import RejectedScreen from './pages/RejectedScreen';
@@ -25,11 +23,45 @@ import MinisterLayout  from './pages/MinisterLayout';
 const AttendLayout  = lazy(() => import('./pages/AttendLayout'));
 const DecisionsLayout = lazy(() => import('./pages/DecisionsLayout'));
 
+// H-91: rotates through a few lines rather than always showing the same
+// one — playful-but-not-serious tone, matching the rest of the app (see
+// visualizer loading-message guidance elsewhere in this codebase).
+const STARTUP_LINES = [
+  'Getting things ready…',
+  'Almost there…',
+  'Dusting off the pews…',
+  'Warming up the connection…',
+];
+
+// H-88: warm, specific copy for the slow-cold-start case (Render free tier
+// spins the backend down when idle — see DEPLOY.md "Hosting architecture").
+// A volunteer standing in the lobby shouldn't think the app is broken.
+const SLOW_START_LINE = "Waking up the server, hang tight — this only happens after a quiet spell.";
+
+// H-89: hard timeout so the loading screen never spins forever — after this
+// many ms, show a "taking longer than usual — retry" button instead.
+const LOADING_HARD_TIMEOUT_MS = 18000;
+
 function LoadingScreen({ slowStart = false }) {
+  const [lineIndex, setLineIndex] = useState(0);
+  const [timedOut, setTimedOut]   = useState(false);
+
+  useEffect(() => {
+    if (slowStart) return undefined; // slow-start has its own fixed message
+    const t = setInterval(() => setLineIndex(i => (i + 1) % STARTUP_LINES.length), 2200);
+    return () => clearInterval(t);
+  }, [slowStart]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setTimedOut(true), LOADING_HARD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div style={{
       minHeight: '100dvh', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', background: 'var(--bg)',
+      padding: 24, textAlign: 'center',
     }}>
       <style>{`
         @keyframes reach-pulse {
@@ -59,13 +91,23 @@ function LoadingScreen({ slowStart = false }) {
       }}>
         REACH
       </div>
-      {slowStart && (
+      {!timedOut && (
         <div style={{
           fontSize: 11, color: 'var(--text-3)', marginTop: 12,
           fontFamily: 'var(--font-sans)', fontWeight: 400,
           animation: 'reach-fade-in 0.3s ease-out 0.3s both',
         }}>
-          Starting up…
+          {slowStart ? SLOW_START_LINE : STARTUP_LINES[lineIndex]}
+        </div>
+      )}
+      {timedOut && (
+        <div style={{ marginTop: 16, animation: 'reach-fade-in 0.3s ease-out both' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 12 }}>
+            Taking longer than usual.
+          </div>
+          <button className="btn btn-outline btn-sm" onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       )}
     </div>
@@ -89,8 +131,8 @@ function AppRoutes() {
       <Route path="/"          element={<LandingPage />} />
       <Route path="/login"     element={<LoginPage />} />
       <Route path="/signup"    element={<SignupPage />} />
-      <Route path="/hub-login" element={<HubLoginPage />} />
-      <Route path="/admin"     element={<AdminLoginPage />} />
+      <Route path="/hub-login" element={<LoginPage requiredRole="hub_leader" />} />
+      <Route path="/admin"     element={<LoginPage requiredRole="minister" />} />
       <Route path="/privacy"   element={<PrivacyPage />} />
       <Route path="/join"      element={<JoinPage />} />
       <Route path="*"          element={<Navigate to="/" replace />} />
@@ -115,7 +157,7 @@ function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route path="/admin-panel/*" element={<MinisterLayout />} />
-        <Route path="/admin"         element={<AdminLoginPage />} />
+        <Route path="/admin"         element={<LoginPage requiredRole="minister" />} />
         <Route path="/attend"        element={<AttendLayout />} />
         <Route path="/decisions"     element={<DecisionsLayout />} />
         <Route path="*"              element={<Navigate to="/admin-panel/dashboard" replace />} />

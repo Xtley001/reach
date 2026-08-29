@@ -165,19 +165,6 @@ h2, .h2 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0
   --text-display-md: 24px;
   --text-display-lg: 28px;
 
-  /* Radius */
-  --radius-sm:   4px;
-  --radius:      6px;
-  --radius-md:   8px;
-  --radius-lg:   12px;
-  --radius-pill: 9999px;
-  --radius-full: 9999px;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow:    0 2px 8px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 20px rgba(0,0,0,0.10);
-
   --tap-min: 44px;
 }
 
@@ -587,6 +574,38 @@ button { font-family: var(--font-sans); cursor: pointer; }
   color: var(--accent-fg);
   border-color: var(--accent);
 }
+
+/* ── Tag chips (B-21) ─────────────────────────────────────────────────────── */
+.tag-checklist { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min);         /* A-15: 44px min touch target */
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.tag-chip:disabled { opacity: 0.6; cursor: default; }
+.tag-chip.active {
+  background: color-mix(in srgb, var(--chip-color, var(--accent)) 16%, var(--bg));
+  border-color: var(--chip-color, var(--accent));
+  color: var(--chip-color, var(--accent));
+}
+.tag-chip-check { flex-shrink: 0; }
+.tag-checklist-sm .tag-chip { font-size: 11px; padding: 0 var(--space-2); }
+/* A-15 note: deliberately NOT shrinking min-height below --tap-min even in
+   the "sm" density variant — these are the exact chips a volunteer taps
+   live mid-call, and that's precisely the case the touch-target audit
+   called out. Only font-size/padding shrink; the tap target doesn't. */
 
 /* ── Stats Grid ────────────────────────────────────────────────────────────── */
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-4); }

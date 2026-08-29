@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cached, invalidate, TTL } from '../../lib/cache';
 import { getCachedContacts, cacheContacts } from '../../lib/offline';
-import { StatusBadge, Modal, Spinner, EmptyState, PageSkeleton } from '../../components/UI';
+import { StatusBadge, Modal, Spinner, EmptyState, PageSkeleton, PageHeader, Icon, TagChecklist, CallTimeline } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 function buildWAUrl(phone, template, name) {
@@ -23,6 +23,9 @@ const FILTERS = [
   { id: 'confirmed',  label: 'Confirmed' },
   { id: 'undecided',  label: 'Undecided' },
   { id: 'issues',     label: 'Issues' },
+  // C-34/38: surfaces mass-paste-imported contacts still missing details —
+  // the volunteer's very next tap after a paste-import lands here.
+  { id: 'incomplete', label: 'Incomplete' },
 ];
 
 const STATUS_OPTIONS = [
@@ -37,7 +40,7 @@ const STATUS_OPTIONS = [
 
 export default function ContactsList() {
   const location = useLocation();
-  const [filter, setFilter]     = useState('');
+  const [filter, setFilter]     = useState(() => location.state?.initialFilter || '');
   const [contacts, setContacts] = useState([]);
   const [search, setSearch]     = useState('');
   const [loading, setLoading]   = useState(true);
@@ -46,6 +49,70 @@ export default function ContactsList() {
   const [detail, setDetail]     = useState(null);
   const [detailLoading, setDL]  = useState(false);
   const [templates, setTemplates] = useState([]);
+  const [tagDefs, setTagDefs]   = useState([]);
+
+  // Auto-Call Disposition state
+  const [callContact, setCallContact] = useState(null);
+  const [callReceptivity, setCallReceptivity] = useState(null);
+  const [callAvailability, setCallAvailability] = useState(null);
+  const [callComment, setCallComment] = useState('');
+  const [callRemindAt, setCallRemindAt] = useState('');
+  const [callSaving, setCallSaving] = useState(false);
+  const pendingCallRef = useRef(null);
+
+  // Return from phone call detection
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible' && pendingCallRef.current) {
+        const contact = pendingCallRef.current;
+        pendingCallRef.current = null;
+        setCallContact(contact);
+        setCallReceptivity(null);
+        setCallAvailability(null);
+        setCallComment('');
+        setCallRemindAt('');
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  function handleInitiateCall(e, c) {
+    e.stopPropagation();
+    pendingCallRef.current = c;
+  }
+
+  async function handleSaveCallDisposition() {
+    if (!callContact || !callReceptivity) return;
+    setCallSaving(true);
+    try {
+      await api.logCall(callContact.id, {
+        receptivity_code: callReceptivity,
+        availability_code: callReceptivity === 'picked_up' ? callAvailability : null,
+        comment: callComment.trim() || null,
+        remind_at: (callAvailability === 'needs_reminder' && callRemindAt) ? new Date(callRemindAt).toISOString() : null,
+      });
+
+      // Update contact status locally
+      let newStatus = callContact.current_status;
+      if (callReceptivity === 'picked_up' && callAvailability) {
+        newStatus = callAvailability === 'needs_bus' ? 'needs_transport' : callAvailability === 'needs_reminder' ? 'undecided' : callAvailability;
+      } else if (callReceptivity === 'no_answer') {
+        newStatus = 'no_answer';
+      } else if (callReceptivity === 'wrong_number' || callReceptivity === 'invalid_number') {
+        newStatus = 'wrong_number';
+      }
+
+      setContacts(cs => cs.map(x => x.id === callContact.id ? { ...x, current_status: newStatus } : x));
+      invalidate('contacts:mine');
+      invalidate('call:queue');
+      toast('Call logged ✓', 'success');
+      setCallContact(null);
+    } catch (err) {
+      toast(err.message || 'Failed to log call', 'error');
+    }
+    setCallSaving(false);
+  }
 
   async function load(f = filter) {
     setLoading(true);
@@ -79,6 +146,9 @@ export default function ContactsList() {
 
   useEffect(() => {
     api.getActiveTemplates().then(d => setTemplates(d.templates || [])).catch(() => {});
+    // B-17: fetch the config-driven tag list once — every TagChecklist chip
+    // set on this page renders from this, not a hardcoded list.
+    api.listTagDefinitions().then(d => setTagDefs(d.tags || [])).catch(() => {});
   }, []);
 
   async function openContact(c) {
@@ -136,36 +206,62 @@ export default function ContactsList() {
       if (f.id === 'needs_call') return ['no_answer','message_sent','undecided'].includes(c.current_status);
       if (f.id === 'undecided')  return c.current_status === 'undecided';
       if (f.id === 'issues')     return ['not_coming','wrong_number','unreachable'].includes(c.current_status);
+      if (f.id === 'incomplete') return c.is_incomplete;
       return true;
     }).length;
   });
 
+  const incompleteCount = contacts.filter(c => c.is_incomplete).length;
+
   return (
     <div className="page">
-      <div className="page-header">
-        <div className="page-title">My Contacts</div>
-        <input
-          className="field-input"
-          style={{ marginTop: 10 }}
-          placeholder="Search name or area…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <div className="filter-row">
-          {FILTERS.map(f => (
-            <button
-              key={f.id}
-              className={`filter-tag${filter === f.id ? ' active' : ''}`}
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-              {filterCounts[f.id] > 0 && (
-                <span style={{ marginLeft: 4, opacity: 0.7 }}>({filterCounts[f.id]})</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="My Contacts"
+        filters={
+          <>
+            <input
+              className="field-input"
+              style={{ marginBottom: 10 }}
+              placeholder="Search name or area…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <div className="filter-row">
+              {FILTERS.map(f => (
+                <button
+                  key={f.id}
+                  className={`filter-tag${filter === f.id ? ' active' : ''}`}
+                  onClick={() => setFilter(f.id)}
+                >
+                  {f.label}
+                  {filterCounts[f.id] > 0 && (
+                    <span style={{ marginLeft: 4, opacity: 0.7 }}>({filterCounts[f.id]})</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        }
+      />
+
+      {/* C-34/38: banner pointing straight at "Finish these {n} contacts" —
+          the mass-paste-import flow's very next tap, not a dead-end screen. */}
+      {filter !== 'incomplete' && incompleteCount > 0 && (
+        <button
+          onClick={() => setFilter('incomplete')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+            margin: '0 var(--space-4)', marginTop: -4, marginBottom: 8,
+            padding: '10px 12px', border: '1px solid var(--amber, #f59e0b)',
+            borderRadius: 'var(--radius)', background: 'color-mix(in srgb, var(--amber, #f59e0b) 12%, var(--bg))',
+            color: 'var(--amber, #f59e0b)', fontSize: 12.5, fontWeight: 500,
+            fontFamily: 'var(--font-sans)', cursor: 'pointer', textAlign: 'left',
+          }}
+        >
+          <Icon name="alert" size={16} />
+          Finish these {incompleteCount} contact{incompleteCount === 1 ? '' : 's'} — added quickly, still need details
+        </button>
+      )}
 
       <div className="page-body" style={{ padding: 0 }}>
         {loading ? (
@@ -191,10 +287,28 @@ export default function ContactsList() {
             {filtered.map(c => (
               <div key={c.id} className="contact-row" onClick={() => openContact(c)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="contact-name">{c.name}</div>
-                  <div className="contact-loc">{c.location}</div>
+                  <div className="contact-name">
+                    {c.name}
+                    {c.is_incomplete && (
+                      <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--amber, #f59e0b)', fontWeight: 500 }}>
+                        Incomplete
+                      </span>
+                    )}
+                  </div>
+                  <div className="contact-loc">{c.location || '—'}</div>
                   {c.needs_transport && (
                     <div style={{ fontSize: 10, color: 'var(--amber)', marginTop: 2 }}>Needs transport</div>
+                  )}
+                  {tagDefs.length > 0 && (
+                    <div style={{ marginTop: 6 }} onClick={e => e.stopPropagation()}>
+                      <TagChecklist
+                        size="sm"
+                        contactId={c.id}
+                        tagDefinitions={tagDefs}
+                        activeTags={c.tags || []}
+                        onChange={(newTags) => setContacts(cs => cs.map(x => x.id === c.id ? { ...x, tags: newTags } : x))}
+                      />
+                    </div>
                   )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
@@ -220,7 +334,7 @@ export default function ContactsList() {
                     </a>
                     <a
                       href={`tel:${c.phone}`}
-                      onClick={e => e.stopPropagation()}
+                      onClick={e => handleInitiateCall(e, c)}
                       style={{
                         fontSize: 11, padding: '4px 10px', borderRadius: 'var(--radius-sm)',
                         background: 'var(--bg-3)', color: 'var(--text-2)',
@@ -236,6 +350,87 @@ export default function ContactsList() {
           </div>
         )}
       </div>
+
+      {/* Auto-Call Disposition Modal */}
+      <Modal open={!!callContact} onClose={() => setCallContact(null)} title={`Log Call: ${callContact?.name || ''}`}>
+        {callContact && (
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 14 }}>
+              How did your call with <strong>{callContact.name}</strong> go?
+            </div>
+
+            {/* Receptivity */}
+            <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              Did they pick up?
+            </div>
+            <div className="tag-checklist" style={{ marginBottom: 12 }}>
+              {[
+                { code: 'picked_up', label: 'Picked Up', icon: 'phone' },
+                { code: 'no_answer', label: 'No Answer', icon: 'clock' },
+                { code: 'wrong_number', label: 'Wrong No', icon: 'x' },
+                { code: 'invalid_number', label: 'Invalid No', icon: 'alert' },
+              ].map(r => (
+                <button
+                  key={r.code}
+                  type="button"
+                  className={`tag-chip${callReceptivity === r.code ? ' active' : ''}`}
+                  onClick={() => { setCallReceptivity(r.code); if (r.code !== 'picked_up') setCallAvailability(null); }}
+                >
+                  <Icon name={r.icon} size={14} />
+                  <span>{r.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Availability: only once picked_up */}
+            {callReceptivity === 'picked_up' && (
+              <div style={{ marginBottom: 12, animation: 'pageIn 0.15s ease-out' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Are they coming?
+                </div>
+                <div className="tag-checklist">
+                  {[
+                    { code: 'coming', label: 'Coming', icon: 'check' },
+                    { code: 'not_coming', label: 'Not Coming', icon: 'x' },
+                    { code: 'needs_reminder', label: 'Needs Reminder', icon: 'clock' },
+                    { code: 'needs_bus', label: 'Needs Bus', icon: 'bus' },
+                  ].map(a => (
+                    <button
+                      key={a.code}
+                      type="button"
+                      className={`tag-chip${callAvailability === a.code ? ' active' : ''}`}
+                      onClick={() => setCallAvailability(a.code)}
+                    >
+                      <Icon name={a.icon} size={14} />
+                      <span>{a.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <input
+              className="field-input"
+              style={{ marginTop: 8, marginBottom: 16, fontSize: 13 }}
+              placeholder="Add a quick note (optional)…"
+              value={callComment}
+              onChange={e => setCallComment(e.target.value)}
+              maxLength={280}
+            />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8 }}>
+              <button className="btn btn-outline" onClick={() => setCallContact(null)}>Skip</button>
+              <button
+                className="btn btn-primary"
+                disabled={!callReceptivity || callSaving}
+                onClick={handleSaveCallDisposition}
+              >
+                {callSaving ? 'Saving…' : 'Log Call ✓'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal open={!!selected} onClose={() => { setSelected(null); setDetail(null); }} title={selected?.name || ''}>
         {detailLoading ? (
@@ -269,6 +464,28 @@ export default function ContactsList() {
                 </div>
               </div>
             )}
+
+            {tagDefs.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Outcome tags</div>
+                <TagChecklist
+                  contactId={detail.id}
+                  tagDefinitions={tagDefs}
+                  activeTags={detail.tags || []}
+                  onChange={(newTags) => {
+                    setDetail(d => d ? { ...d, tags: newTags } : d);
+                    setContacts(cs => cs.map(x => x.id === detail.id ? { ...x, tags: newTags } : x));
+                  }}
+                />
+              </div>
+            )}
+
+            {/* F-73: full call timeline — who called, when, receptivity,
+                availability, comment. Not just a single status badge. */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Call history</div>
+              <CallTimeline contactId={detail.id} />
+            </div>
 
             <div className="divider" />
 

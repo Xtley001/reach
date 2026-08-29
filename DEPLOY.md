@@ -108,10 +108,20 @@ ADMIN_BACKUP_EMAIL=your@gmail.com
 TERMII_API_KEY=your_termii_api_key
 TERMII_SENDER_ID=REACH
 
-# ── Cloudinary ────────────────────────────────────────────────────────────────
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# ── Supabase Storage (I-93/94) ───────────────────────────────────────────────
+# Replaces Cloudinary (see "Why Supabase Storage, not Cloudinary" below).
+# Supabase dashboard → Storage → New bucket → name "avatars" → Public bucket: ON
+# Supabase dashboard → Settings → API → service_role key (NOT anon — server-side only)
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_AVATARS_BUCKET=avatars
+
+# ── Cloudinary (DEPRECATED — I-94) ───────────────────────────────────────────
+# Leave blank once SUPABASE_URL above is set. Kept only as an emergency
+# rollback path — storage.py prefers Supabase automatically when configured.
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
 
 # ── Redis (Upstash) ───────────────────────────────────────────────────────────
 # Upstash → your database → copy the full rediss:// URL
@@ -366,7 +376,7 @@ Then add each hub (name + zone).
 **2. Invite hub leaders**
 Minister dashboard → Volunteers → Invite Hub Leader → select hub → enter the hub leader's phone number → Generate link.
 Copy the invite link and send it to them via WhatsApp or SMS.
-The link expires in 48 hours. The hub leader clicks it, enters their name, requests OTP, verifies — they land directly on their dashboard. No approval step.
+The link expires in 7 days (D-46 — bumped from the original 48h, which was too tight for real onboarding pace if someone doesn't check their phone same-day). The hub leader clicks it, enters their name, requests OTP, verifies — they land directly on their dashboard. No approval step.
 
 **3. Share the sign-up link with volunteers**
 Send your Vercel URL to volunteers. They visit `/` → "Join as a volunteer" → enter name, phone, select hub → OTP.
@@ -377,7 +387,134 @@ Hub leader dashboard shows a pending queue. They review and approve — the volu
 
 ---
 
-## Troubleshooting
+## Why Supabase Storage, not Cloudinary (I-92/93/94/95/96)
+
+Cloudinary was used for exactly one thing: uploading a pre-cropped 400×400
+profile avatar (`backend/storage.py`). No video, no on-the-fly transforms
+beyond `quality:auto`/`fetch_format:auto`, no CDN-heavy media pipeline.
+
+The app already runs on Supabase for Postgres. Supabase Storage
+(S3-compatible file storage, its own CDN and image transforms) is part of
+the same project at no extra signup. For a workload this small — one small
+image per user — a second file-storage vendor was one more API key to
+leak, one more service that can go down independently, and one more
+dependency in `requirements.txt` for zero real benefit.
+
+**Migration**: `storage.py` now calls the Supabase Storage REST API
+directly (`upload_avatar`/`delete_avatar` keep the exact same function
+signatures as before, so nothing else in the codebase changed). It
+auto-falls-back to Cloudinary only if `SUPABASE_URL` isn't set — this is a
+safety net during the swap, not a permanent dual-vendor setup. A one-time
+backfill script for existing avatars lives at
+`backend/scripts/migrate_avatars_to_supabase.py` — run it once after
+setting the Supabase env vars:
+
+```bash
+cd backend
+python -m scripts.migrate_avatars_to_supabase --dry-run   # preview first
+python -m scripts.migrate_avatars_to_supabase              # then actually run it
+```
+
+If Supabase Storage's free-tier limits ever become a real constraint
+(they're generous for a single church), that's the point to revisit — not
+before.
+
+---
+
+## Hosting architecture — why 3 vendors, and which paid tier matters (I-97/98/99/100)
+
+Three vendors today: Vercel (static frontend, instant global CDN, preview
+deploys per PR), Render (FastAPI backend — a long-running process, which is
+what SQLAlchemy connection pooling, background tasks, and the stateful rate
+limiter genuinely want, unlike Vercel's serverless functions), and Supabase
+(Postgres + Storage).
+
+**The real, visible cost of this split**: Render's free tier spins the
+backend down when idle, which is exactly why the `reach:slow-start`
+cold-start message (`api.js`, `LoadingScreen` in `App.jsx`) had to be built
+in the first place — see item H below. That's not a hypothetical, it's a
+problem this codebase already had to work around.
+
+**Decision**: keep the 3-vendor split, but pay for Render's smallest
+always-on plan (a few dollars/month) instead of the free tier. This removes
+the cold-start problem entirely without touching any code — it's the
+lowest-effort fix for the actual pain point ("things being slow to
+start"). The alternative (consolidating to Render for both frontend and
+backend) would cut one vendor, but loses Vercel's preview-deploy-per-PR
+workflow, which is worth keeping even for a small admin team — and Vercel's
+frontend hosting is free regardless, so there's no real reason to give it
+up.
+
+**Action for whoever manages billing**: upgrade the Render web service off
+the free tier before real Sunday-morning usage. This is a payment decision
+this document can flag but can't make for you — see the "Blocked items"
+note in the project summary.
+
+Regardless of tier, a scheduled health-check ping (any free uptime
+monitor hitting `GET /health` every 5–10 minutes) is worth having anyway —
+it keeps a free/idle tier warm as a stopgap and doubles as the uptime
+alerting called out below.
+
+---
+
+## Reliability checklist for future releases (E-54, E-64)
+
+Run through this before shipping any release that touches contacts, tags,
+call logs, or auth — not just this one:
+
+- [ ] CSP headers present in `vercel.json` / `frontend/vercel.json` (see D-44)
+- [ ] Rate limits present on `/auth/*` and `/invite/*` endpoints (D-41/42)
+- [ ] Alembic migrations applied AND `alembic upgrade head` resolves to a
+      single head with no missing `revision`/`down_revision` (see E-58 —
+      this exact thing broke silently once already)
+- [ ] `SENTRY_DSN` set on the backend, `VITE_SENTRY_DSN` set on the frontend
+- [ ] New/changed endpoints have at least one request-validation test
+      (`backend/tests/`) — see E-57
+- [ ] `npm run build` and `npm run test` both pass
+- [ ] `python -m pytest backend/tests/` passes
+
+### Rollback plan (E-64)
+
+If the tag system, mass-upload flow, or call logging has a bug on day one:
+
+1. **Frontend-only bug** (a UI glitch, not data corruption): revert the
+   Vercel deployment to the previous one from the Vercel dashboard
+   (Deployments → previous → "Promote to Production"). Takes under a
+   minute, no data is touched.
+2. **Backend bug with the new endpoints, but data is fine**: redeploy the
+   previous Render build from the Render dashboard (Deploys → previous
+   → "Redeploy"). The new tables (`contact_tags`, `call_logs`,
+   `tag_definitions`) simply go unused by the old code — nothing is lost,
+   because they're additive tables, not modifications to existing ones
+   (except `contacts.location` becoming nullable and `contacts.is_incomplete`
+   being added, both backward-compatible with old code that never reads
+   them).
+3. **Migration needs to be rolled back**: `alembic downgrade -1` reverses
+   the `20260824_tags_calls` migration (drops the new tables, drops the
+   `is_incomplete` column). It deliberately does NOT re-add
+   `location NOT NULL` or remove the `suspended` enum value — see the
+   comments in that migration file for why (Postgres can't cleanly remove an
+   enum value, and re-adding NOT NULL could fail on real data created via
+   the paste-import flow in the meantime).
+4. **No contact entered that day is ever lost by any of the above** — steps
+   1–3 all leave the `contacts` table itself untouched; the risk is only
+   ever in the new tag/call-log tables being unreachable, not in existing
+   data being deleted.
+
+### Feature flags (E-63)
+
+There's no feature-flag framework in this codebase, and adding one is out
+of scope for this release. The lightest real option, if a future update
+needs to roll out to one hub first: add a nullable `feature_flags JSONB`
+column to `organisations` (or a dedicated `hubs.feature_flags` column),
+check it in the relevant router before enabling new behavior, default to
+the old behavior when the column is null/empty. Deliberately not built
+speculatively here — build it when the first feature that actually needs
+staged rollout shows up, not before.
+
+---
+
+
 
 **OTP not arriving in Gmail**
 Check on Render: `OTP_PROVIDER=email`, `SMTP_USER` is your Gmail, `SMTP_PASS` is the 16-char App Password (with spaces is fine), `SMTP_PORT=465`. Check Render logs for SMTP errors.

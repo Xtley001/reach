@@ -2,8 +2,15 @@ import { useState } from 'react';
 import { api } from '../../lib/api';
 import { invalidateAll } from '../../lib/cache';
 import { toast } from '../../lib/toast';
+import PasteImportContacts from './PasteImportContacts';
 
+/**
+ * C-40: paste-import (PasteImportContacts) is the primary "mass upload"
+ * flow now — this manual 5-row grid stays available as a secondary "add a
+ * few with full detail right now" option, not deleted.
+ */
 export default function BulkAddContacts({ onDone }) {
+  const [mode, setMode] = useState('paste'); // 'paste' | 'manual'
   const [contacts, setContacts] = useState(Array(5).fill(null).map(() => ({
     name: '', phone: '', location: '', notes: '', needs_transport: false, saved: false
   })));
@@ -66,20 +73,38 @@ export default function BulkAddContacts({ onDone }) {
 
       const result = await api.addContactsBulk(payload);
 
+      const savedCount = result.saved ?? result.created ?? 0;
+      const skippedCount = result.skipped ?? ((result.results?.length || 0) - savedCount);
+
       if (continueMode) {
         const newContacts = Array(5).fill(null).map(() => ({
           name: '', phone: '', location: lastLocation, notes: '', needs_transport: false, saved: false
         }));
         setContacts(newContacts);
-        toast(`Added ${result.created} contacts! Ready for more.`, 'success');
+        toast(`Added ${savedCount} contacts! Ready for more.`, 'success');
       } else {
-        setResults(result);
+        setResults({ ...result, saved: savedCount, skipped: skippedCount });
         invalidateAll('contacts:');
       }
     } catch (e) {
       toast(e.message || 'Failed to add contacts', 'error');
     }
     setLoading(false);
+  }
+
+  if (mode === 'paste') {
+    return (
+      <div className="page">
+        <div style={{ padding: 'var(--space-4) var(--space-4) 0' }}>
+          <div className="filter-row">
+            <button className="filter-tag active" disabled style={{ cursor: 'default' }}>Paste List</button>
+            <button className="filter-tag" onClick={() => setMode('manual')}>Manual Entry</button>
+            <button className="filter-tag" onClick={onDone} style={{ marginLeft: 'auto' }}>Cancel</button>
+          </div>
+        </div>
+        <PasteImportContacts onDone={onDone} />
+      </div>
+    );
   }
 
   if (results) {
@@ -92,7 +117,7 @@ export default function BulkAddContacts({ onDone }) {
           <div style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
             <div style={{ fontSize: 28, marginBottom: 'var(--space-3)' }}>✓</div>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 'var(--space-2)' }}>
-              {results.created} contacts added
+              {results.saved} contact{results.saved === 1 ? '' : 's'} added
             </div>
             {results.skipped > 0 && (
               <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 'var(--space-4)' }}>
@@ -118,6 +143,9 @@ export default function BulkAddContacts({ onDone }) {
       <div className="page-header">
         <div className="page-title">Bulk Add Contacts</div>
         <div className="page-subtitle">Add multiple contacts at once</div>
+        <div className="filter-row" style={{ marginTop: 8 }}>
+          <button className="filter-tag" onClick={() => setMode('paste')}>← Paste List instead</button>
+        </div>
       </div>
 
       <div className="page-body">

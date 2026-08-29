@@ -40,6 +40,7 @@ from ..dependencies import (
     require_minister, log_action, get_client_ip
 )
 from ..config import settings
+from ..limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 onboarding_router = APIRouter(prefix="/onboarding", tags=["onboarding"])
@@ -88,7 +89,8 @@ async def list_hubs_for_signup(db: Session = Depends(get_db)):
 # ─── Send OTP ─────────────────────────────────────────────────────────────────
 
 @router.post("/send-otp", response_model=SendOTPResponse, status_code=200)
-async def send_otp(body: SendOTPRequest, request: Request, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def send_otp(request: Request, body: SendOTPRequest, db: Session = Depends(get_db)):
     """
     Returns is_returning to let the frontend decide which flow to show.
       is_returning=True  → short flow: phone → OTP → dashboard
@@ -172,9 +174,10 @@ async def send_otp(body: SendOTPRequest, request: Request, db: Session = Depends
 # ─── Verify OTP ───────────────────────────────────────────────────────────────
 
 @router.post("/verify-otp", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def verify_otp(
-    body: VerifyOTPRequest,
     request: Request,
+    body: VerifyOTPRequest,
     response: Response,
     db: Session = Depends(get_db),
 ):
@@ -199,6 +202,24 @@ async def verify_otp(
             session.attempts += 1
             if session.attempts >= OTP_MAX_ATTEMPTS:
                 session.locked_until = now + timedelta(minutes=OTP_LOCKOUT_MINUTES)
+                # D-51: audit-log the lockout event itself — this is the
+                # foundation any real alerting (email/Slack/SMS to admins)
+                # would consume. Per-account, not per-IP, since a shared
+                # church wifi means many legitimate users share one IP and
+                # IP-based limits alone under/over-block (see D-41/42 for
+                # the separate IP-based rate limiting layer).
+                # NOTE: wiring this to an actual notification channel (e.g.
+                # a Slack webhook, or an admin email via the existing Brevo
+                # provider) is a real, concrete next step but needs a
+                # decision on WHERE alerts should go — that's a product
+                # decision, not something this pass can decide unilaterally.
+                # The audit log row below is what such a channel would poll
+                # or subscribe to once that decision is made.
+                log_action(
+                    db, user=None, action="auth.account_locked",
+                    entity_type="otp_session", entity_id=session.id,
+                    metadata={"identifier_hash": session.identifier_hash, "attempts": session.attempts},
+                )
             db.commit()
 
     if not session or session.expires_at < now:
@@ -309,6 +330,7 @@ async def verify_otp(
 # ─── Refresh ──────────────────────────────────────────────────────────────────
 
 @router.post("/refresh", response_model=RefreshResponse)
+@limiter.limit("20/minute")
 async def refresh_token(
     request: Request,
     response: Response,
@@ -404,6 +426,7 @@ async def refresh_token(
 # ─── Logout ───────────────────────────────────────────────────────────────────
 
 @router.post("/logout", status_code=204)
+@limiter.limit("20/minute")
 async def logout(
     request: Request, response: Response,
     db: Session = Depends(get_db),

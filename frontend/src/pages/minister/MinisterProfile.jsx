@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { toast } from '../../lib/toast';
 import { Avatar } from '../../components/AvatarLightbox';
 import AvatarCropper from '../../components/AvatarCropper';
+import { WhatsNextPanel } from '../../components/UI';
 
 export default function MinisterProfile() {
   const { user, refreshUser, logout } = useAuth();
@@ -75,6 +76,9 @@ export default function MinisterProfile() {
             Reset All Active Sessions
           </button>
         </div>
+
+        {/* E-65: internal-admin-only "what's next" note. */}
+        <WhatsNextPanel />
       </div>
     </div>
   );

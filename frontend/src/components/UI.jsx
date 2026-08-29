@@ -2,13 +2,19 @@
  * REACH — Core UI components
  */
 import { StatusBadge, DecisionBadge, Badge } from './ui/Badge';
-export { StatusBadge, DecisionBadge, Badge };
+import Icon from './ui/Icon';
+import PageHeader from './ui/PageHeader';
+import TagChecklist from './ui/TagChecklist';
+import CallTimeline from './ui/CallTimeline';
+import { TagCountsChart, ReceptivityChart, AvailabilityChart } from './ui/RollupChart';
+import WhatsNextPanel from './ui/WhatsNextPanel';
+export { StatusBadge, DecisionBadge, Badge, Icon, PageHeader, TagChecklist, CallTimeline, TagCountsChart, ReceptivityChart, AvailabilityChart, WhatsNextPanel };
 
 export function Spinner({ large }) {
   return <div className={`spinner${large ? ' spinner-lg' : ''}`} />;
 }
 
-export function EmptyState({ icon, message = 'Nothing here yet.' }) {
+export function EmptyState({ icon, message = 'Nothing here yet.', hint }) {
   return (
     <div className="empty-state">
       <div className="empty-state-icon">
@@ -21,6 +27,7 @@ export function EmptyState({ icon, message = 'Nothing here yet.' }) {
         )}
       </div>
       <div className="empty-state-msg">{message}</div>
+      {hint && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>{hint}</div>}
     </div>
   );
 }

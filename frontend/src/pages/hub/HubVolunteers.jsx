@@ -1,20 +1,11 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { cached, invalidate, TTL } from '../../lib/cache';
-import { PageSkeleton } from '../../components/UI';
+import { PageSkeleton, EmptyState, Icon, PageHeader } from '../../components/UI';
 import { toast } from '../../lib/toast';
 import VolunteerDetail from './VolunteerDetail';
 
 const FILTERS = ['All', 'Pending', 'Active', 'Rejected'];
-
-function PeopleIcon() {
-  return (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-3)' }}>
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  );
-}
 
 export default function HubVolunteers() {
   const [volunteers, setVolunteers] = useState([]);
@@ -82,23 +73,25 @@ export default function HubVolunteers() {
 
   return (
     <div className="page">
-      <div className="page-header">
-        <div className="page-title">Volunteers</div>
-        <div className="filter-row">
-          {FILTERS.map(f => (
-            <button key={f} className={`filter-tag${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Volunteers"
+        filters={
+          <div className="filter-row">
+            {FILTERS.map(f => (
+              <button key={f} className={`filter-tag${filter === f ? ' active' : ''}`} onClick={() => setFilter(f)}>
+                {f}
+              </button>
+            ))}
+          </div>
+        }
+      />
       <div className="page-body" style={{ padding: 0 }}>
         {loading ? <PageSkeleton /> : filtered.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon"><PeopleIcon /></div>
-            <div className="empty-state-msg">No volunteers yet.</div>
-            <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Volunteers join via an invite link.</div>
-          </div>
+          <EmptyState
+            icon={<Icon name="people" size={40} />}
+            message="No volunteers yet."
+            hint="Volunteers join via an invite link."
+          />
         ) : (
           <div>
             {filtered.map(v => (

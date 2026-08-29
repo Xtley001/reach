@@ -138,16 +138,31 @@ class TokenResponse(BaseModel):
 from typing import List
 from enum import Enum as PyEnum
 
+class ProfileUpdate(BaseModel):
+    name:   Optional[str] = None
+    email:  Optional[str] = None
+    phone:  Optional[str] = None
+    hub_id: Optional[str] = None
+
+    @field_validator("phone")
+    @classmethod
+    def phone_e164(cls, v):
+        if v is None or v == "":
+            return None
+        return validate_phone(v)
+
+
 class ContactCreate(BaseModel):
     name:               str
     phone:              str
-    location:           str
+    location:           Optional[str] = None
     notes:              Optional[str] = None
     needs_transport:    bool = False
     transport_location: Optional[str] = None
     source:             str = "volunteer"
     how_did_you_hear:   Optional[str] = None
     email:              Optional[str] = None
+    local_id:           Optional[str] = None
 
     @field_validator("phone")
     @classmethod
@@ -165,11 +180,25 @@ class ContactSyncBatch(BaseModel):
 class ContactListItem(BaseModel):
     id:             str
     name:           str
-    phone:          str
-    location:       str
+    # E-bugfix: this was a required field with no default, but
+    # _contact_list_item() in routers/contacts.py deliberately never sets it
+    # ("Phone number NOT included in list response — security requirement",
+    # per that function's own docstring). Every call to GET /contacts was
+    # 500ing on `.model_dump()` because of the missing required field. Made
+    # Optional (and left unset by the list endpoint) rather than populated,
+    # since excluding it from the list response is the intended behavior —
+    # phone is only ever returned by the single-contact detail endpoint,
+    # which does its own ownership check first.
+    phone:          Optional[str] = None
+    location:       Optional[str] = None
     current_status: Optional[str] = None
     needs_transport:bool = False
     message_sent_count: int = 0
+    # B-21/C-34: surfaced on the list item itself so ContactsList can render
+    # tag chips and the "Finish these {n} contacts" incomplete banner without
+    # a second round trip per row.
+    tags:           List[str] = []
+    is_incomplete:  bool = False
 
 
 class ContactDetail(ContactListItem):
@@ -193,9 +222,18 @@ class MessageSendLog(BaseModel):
 
 
 class ContactSyncResult(BaseModel):
-    created:    int = 0
-    duplicates: int = 0
-    errors:     List[str] = []
+    # E-bugfix: this schema previously declared `created/duplicates/errors`
+    # fields that don't match how routers/contacts.py's sync_contacts()
+    # actually constructs this model (`local_id/server_id/status/message`
+    # per-item) — every call to POST /contacts/sync would 500 on
+    # `.model_dump()` since Pydantic would reject the unexpected kwargs.
+    # Found while implementing E-57 (backend validation tests for new
+    # endpoints) and fixed here since it's an existing reliability gap, not
+    # new code.
+    local_id:  Optional[str] = None
+    server_id: Optional[str] = None
+    status:    str
+    message:   Optional[str] = None
 
 
 # ─── Template Schemas ─────────────────────────────────────────────────────────
@@ -241,3 +279,83 @@ class HubCreate(BaseModel):
     zone:        Optional[str] = None
     location:    Optional[str] = None
     description: Optional[str] = None
+
+
+# ─── B: Contact outcome tags ──────────────────────────────────────────────────
+
+class TagDefinitionOut(BaseModel):
+    code:       str
+    label:      str
+    color:      Optional[str] = None
+    icon:       Optional[str] = None
+    sort_order: int = 0
+
+
+class TagDefinitionCreate(BaseModel):
+    code:  str
+    label: str
+    color: Optional[str] = None
+    icon:  Optional[str] = None
+
+
+class ContactTagOut(BaseModel):
+    tag_code: str
+    set_by:   str
+    set_at:   datetime
+    note:     Optional[str] = None
+
+
+class TagToggleRequest(BaseModel):
+    tag_code: str
+    # B-27: optional note, never required.
+    note:     Optional[str] = None
+
+
+# ─── C: Mass upload / paste-to-import ─────────────────────────────────────────
+
+class PasteImportRow(BaseModel):
+    name:  Optional[str] = None
+    phone: str
+
+    @field_validator("phone")
+    @classmethod
+    def phone_e164(cls, v):
+        return validate_phone(v)
+
+
+class PasteImportRequest(BaseModel):
+    rows: List[PasteImportRow]
+
+
+class PasteImportResultRow(BaseModel):
+    phone:   str
+    status:  str  # "saved" | "duplicate" | "error"
+    id:      Optional[str] = None
+    message: Optional[str] = None
+
+
+class PasteImportResponse(BaseModel):
+    saved:   int
+    skipped: int
+    results: List[PasteImportResultRow]
+
+
+# ─── F: Call logging (receptivity + availability) ─────────────────────────────
+
+class CallLogCreate(BaseModel):
+    receptivity_code:  str
+    availability_code: Optional[str] = None
+    comment:            Optional[str] = None
+    # F-76: optional "call back at" reminder — not required, easy to skip.
+    remind_at:          Optional[datetime] = None
+
+
+class CallLogOut(BaseModel):
+    id:                 str
+    called_by:          str
+    called_by_name:     Optional[str] = None
+    called_at:          datetime
+    receptivity_code:   str
+    availability_code:  Optional[str] = None
+    comment:            Optional[str] = None
+    remind_at:          Optional[datetime] = None

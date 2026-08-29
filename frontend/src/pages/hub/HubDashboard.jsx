@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { cached, TTL } from '../../lib/cache';
-import { StatusBadge, PageSkeleton } from '../../components/UI';
+import { StatusBadge, PageSkeleton, TagCountsChart, ReceptivityChart, AvailabilityChart } from '../../components/UI';
 import { useNavigate } from 'react-router-dom';
 
 export default function HubDashboard() {
@@ -64,6 +64,17 @@ export default function HubDashboard() {
             <div className="stat-label">Pending</div>
           </div>
         </div>
+
+        {/* B-26/F-74: per-tag outcome counts + call receptivity/availability rollups for this hub */}
+        {(d.tag_counts || d.call_rollups) && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)' }}>
+            <TagCountsChart tagCounts={d.tag_counts} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+              <ReceptivityChart callRollups={d.call_rollups} />
+              <AvailabilityChart callRollups={d.call_rollups} />
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[

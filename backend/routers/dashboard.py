@@ -12,7 +12,8 @@ from sqlalchemy import func, and_, distinct
 from ..database import get_db
 from ..models import (
     Contact, ContactStatus, ContactStatusCode, MessageSend,
-    User, UserStatus, UserRole, Campaign, CampaignStatus, Hub
+    User, UserStatus, UserRole, Campaign, CampaignStatus, Hub,
+    ContactTag, TagDefinition, CallLog, ReceptivityCode, AvailabilityCode,
 )
 from ..dependencies import get_current_user, require_hub_leader, require_minister
 
@@ -36,6 +37,59 @@ def _latest_statuses(contacts):
             latest = None
         result[c.id] = latest
     return result
+
+
+def _tag_counts(db: Session, organisation_id: str, contact_ids: list) -> dict:
+    """B-26: per-tag counts for the minister/hub-leader dashboards.
+
+    Two small, clean numbers per tag instead of forcing the reader to page
+    through individual contacts to see how many were e.g. `healed` this
+    week.
+    """
+    if not contact_ids:
+        return {}
+    defs = db.query(TagDefinition).filter(
+        TagDefinition.organisation_id == organisation_id,
+        TagDefinition.is_active == True,  # noqa: E712
+    ).order_by(TagDefinition.sort_order).all()
+
+    rows = db.query(ContactTag.tag_code, func.count(ContactTag.id)).filter(
+        ContactTag.contact_id.in_(contact_ids)
+    ).group_by(ContactTag.tag_code).all()
+    counts_by_code = {code: count for code, count in rows}
+
+    # Always return every active tag, even at 0, so the dashboard chart has a
+    # stable set of bars rather than ones that appear/disappear as counts hit zero.
+    return {d.code: {"label": d.label, "count": counts_by_code.get(d.code, 0)} for d in defs}
+
+
+def _call_rollups(db: Session, contact_ids: list, since=None) -> dict:
+    """F-74: two small, clean rollups — receptivity and availability counts
+    — instead of one messy 8-category chart the old ContactStatusCode
+    system would have produced.
+    """
+    empty = {
+        "receptivity": {c.value: 0 for c in ReceptivityCode},
+        "availability": {c.value: 0 for c in AvailabilityCode},
+        "total_calls": 0,
+    }
+    if not contact_ids:
+        return empty
+
+    q = db.query(CallLog).filter(CallLog.contact_id.in_(contact_ids))
+    if since:
+        q = q.filter(CallLog.called_at >= since)
+    logs = q.all()
+
+    for log in logs:
+        code = log.receptivity_code.value if hasattr(log.receptivity_code, "value") else log.receptivity_code
+        empty["receptivity"][code] = empty["receptivity"].get(code, 0) + 1
+        if log.availability_code:
+            a_code = log.availability_code.value if hasattr(log.availability_code, "value") else log.availability_code
+            empty["availability"][a_code] = empty["availability"].get(a_code, 0) + 1
+
+    empty["total_calls"] = len(logs)
+    return empty
 
 
 # ─── Volunteer Dashboard ──────────────────────────────────────────────────────
@@ -146,6 +200,7 @@ async def hub_dashboard(
             "hub_name": hub_name, "total_contacts": 0, "confirmed": 0,
             "messages_sent": 0, "active_volunteers": 0,
             "pending_approvals": pending_approvals, "stale_contacts": 0,
+            "tag_counts": {}, "call_rollups": _call_rollups(db, []),
         }
 
     from sqlalchemy.orm import joinedload
@@ -172,27 +227,28 @@ async def hub_dashboard(
         User.last_active_at >= today_start,
     ).count()
 
-    # Stale: contacts untouched > 48 hours (SQL subquery — avoids O(n) Python loop)
-    from sqlalchemy import text
+    # Stale: contacts untouched > 48 hours (dialect-agnostic query — avoids SQLite syntax errors)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
     if volunteer_ids:
-        stale_result = db.execute(
-            text("""
-                SELECT COUNT(c.id)
-                FROM contacts c
-                LEFT JOIN (
-                    SELECT contact_id, MAX(updated_at) AS last_update
-                    FROM contact_statuses
-                    GROUP BY contact_id
-                ) latest ON latest.contact_id = c.id
-                WHERE c.added_by = ANY(:vol_ids)
-                  AND c.campaign_id = :campaign_id
-                  AND c.deleted_at IS NULL
-                  AND COALESCE(latest.last_update, c.created_at) < :cutoff
-            """),
-            {"vol_ids": volunteer_ids, "campaign_id": campaign.id, "cutoff": cutoff}
-        ).scalar()
-        stale = stale_result or 0
+        latest_status_subq = (
+            db.query(
+                ContactStatus.contact_id,
+                func.max(ContactStatus.updated_at).label("last_update")
+            )
+            .group_by(ContactStatus.contact_id)
+            .subquery()
+        )
+        stale = (
+            db.query(func.count(Contact.id))
+            .outerjoin(latest_status_subq, latest_status_subq.c.contact_id == Contact.id)
+            .filter(
+                Contact.added_by.in_(volunteer_ids),
+                Contact.campaign_id == campaign.id,
+                Contact.deleted_at.is_(None),
+                func.coalesce(latest_status_subq.c.last_update, Contact.created_at) < cutoff,
+            )
+            .scalar()
+        ) or 0
     else:
         stale = 0
 
@@ -204,6 +260,13 @@ async def hub_dashboard(
         "active_volunteers": active_today,
         "pending_approvals": pending_approvals,
         "stale_contacts": stale,
+        # B-26/F-74: per-tag counts + call receptivity/availability rollups
+        # for this hub's contacts this week.
+        "tag_counts": _tag_counts(db, user.organisation_id, [c.id for c in contacts]),
+        "call_rollups": _call_rollups(
+            db, [c.id for c in contacts],
+            since=datetime.now(timezone.utc) - timedelta(days=7),
+        ),
     }
 
 
@@ -216,7 +279,7 @@ async def minister_dashboard(
 ):
     campaign = _active_campaign(user, db)
     if not campaign:
-        return {"campaign_name": "No active campaign", "total_contacts": 0}
+        return {"campaign_name": "No active campaign", "total_contacts": 0, "tag_counts": {}, "call_rollups": _call_rollups(db, [])}
 
     from sqlalchemy.orm import joinedload
     contacts = db.query(Contact).options(
@@ -264,5 +327,11 @@ async def minister_dashboard(
         "progress_pct": progress,
         "programme_date": campaign.programme_date.isoformat() if campaign.programme_date else None,
         "venue": campaign.venue,
+        # B-26/F-74: per-tag counts + call rollups across the whole campaign.
+        "tag_counts": _tag_counts(db, user.organisation_id, [c.id for c in contacts]),
+        "call_rollups": _call_rollups(
+            db, [c.id for c in contacts],
+            since=datetime.now(timezone.utc) - timedelta(days=7),
+        ),
     }
 

@@ -11,52 +11,36 @@ from ..database import get_db
 from ..models import User, UserRole, UserStatus
 from ..dependencies import get_current_user_allow_pending
 from ..storage import upload_avatar
-from ..schemas import validate_phone, validate_email_address
+from ..schemas import validate_phone, validate_email_address, ProfileUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.patch("/me/profile", status_code=200)
 async def update_profile(
-    name:   Optional[str]        = Form(None),
-    email:  Optional[str]        = Form(None),
-    phone:  Optional[str]        = Form(None),
-    hub_id: Optional[str]        = Form(None),
-    avatar: Optional[UploadFile] = File(None),
+    body:   ProfileUpdate,
     db:     Session              = Depends(get_db),
     user:   User                 = Depends(get_current_user_allow_pending),
 ):
     """
-    Update name, email, phone, hub, and/or profile picture.
-    Available immediately after OTP verify (pending users allowed).
-    Avatar arrives pre-cropped to 400×400 from the frontend crop UI.
+    Update name, email, phone, and/or hub.
+    Accepts JSON payload matching frontend api.updateProfile(data).
     """
-    if name:
-        user.name = name.strip()[:100]
+    if body.name is not None and body.name.strip():
+        user.name = body.name.strip()[:100]
 
-    if email:
-        user.email = validate_email_address(email)
+    if body.email is not None and body.email.strip():
+        user.email = validate_email_address(body.email)
 
-    if phone:
-        user.phone = validate_phone(phone)
+    if body.phone is not None and body.phone.strip():
+        user.phone = validate_phone(body.phone)
 
-    if hub_id and not user.hub_id:
-        # Validate hub exists
+    if body.hub_id and not user.hub_id:
         from ..models import Hub
-        hub = db.query(Hub).filter(Hub.id == hub_id).first()
+        hub = db.query(Hub).filter(Hub.id == body.hub_id).first()
         if not hub:
             raise HTTPException(status_code=404, detail="Hub not found")
-        user.hub_id = hub_id
-
-    if avatar:
-        if avatar.content_type not in ("image/jpeg", "image/png", "image/webp"):
-            raise HTTPException(status_code=400, detail="Avatar must be JPEG, PNG, or WebP")
-        if avatar.size and avatar.size > 5 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="Avatar must be under 5 MB")
-        data = await avatar.read()
-        url = await upload_avatar(user_id=user.id, data=data, content_type=avatar.content_type)
-        if url:
-            user.avatar_url = url
+        user.hub_id = body.hub_id
 
     db.commit()
     db.refresh(user)
@@ -70,6 +54,31 @@ async def update_profile(
         "hub_id":     user.hub_id,
         "status":     user.status,
         "role":       user.role,
+    }
+
+
+@router.post("/me/avatar", status_code=200)
+async def upload_user_avatar(
+    avatar: UploadFile           = File(...),
+    db:     Session              = Depends(get_db),
+    user:   User                 = Depends(get_current_user_allow_pending),
+):
+    """Upload and update user avatar image."""
+    if avatar.content_type not in ("image/jpeg", "image/png", "image/webp"):
+        raise HTTPException(status_code=400, detail="Avatar must be JPEG, PNG, or WebP")
+    data = await avatar.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Avatar must be under 5 MB")
+    
+    url = await upload_avatar(user_id=user.id, data=data, content_type=avatar.content_type)
+    if url:
+        user.avatar_url = url
+        db.commit()
+        db.refresh(user)
+
+    return {
+        "id":         user.id,
+        "avatar_url": user.avatar_url,
     }
 
 

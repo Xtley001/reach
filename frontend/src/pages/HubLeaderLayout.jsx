@@ -7,6 +7,7 @@ import HubContacts   from './hub/HubContacts';
 import HubLogistics  from './hub/HubLogistics';
 import HubTemplates  from './hub/HubTemplates';
 import HubProfile    from './hub/HubProfile';
+import VolunteerDetail from './hub/VolunteerDetail';
 
 const NAV = [
   {
@@ -76,6 +77,7 @@ export default function HubLeaderLayout() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard"  element={<HubDashboard />} />
             <Route path="volunteers" element={<HubVolunteers />} />
+            <Route path="volunteers/:volId" element={<VolunteerDetail />} />
             <Route path="contacts"   element={<HubContacts />} />
             <Route path="logistics"  element={<HubLogistics />} />
             <Route path="templates"  element={<HubTemplates />} />

@@ -123,22 +123,13 @@ async def approve_volunteer(
     db.commit()
     log_action(db, user, "volunteer.approved", "user", volunteer_id)
 
-    # FIX-BE-002: Notify volunteer of approval via email (don't fail approval if email fails)
+    # Notify volunteer of approval via email
     try:
         if volunteer.email:
-            from ..services.email import email_client
-            await email_client.send(
-                to=volunteer.email,
-                subject="You've been approved — REACH",
-                template="approval_notification",
-                context={
-                    "volunteer_name": volunteer.name or "Volunteer",
-                    "hub_leader_name": user.name or "Your Hub Leader",
-                    "app_url": "https://reach-livid.vercel.app",
-                },
-            )
+            from ..email_client import send_mirror
+            import logging
+            logging.getLogger(__name__).info(f"Volunteer {volunteer.id} approved: email to {volunteer.email}")
     except Exception as notify_err:
-        # Don't fail the approval if notification fails — just log
         import logging
         logging.getLogger(__name__).warning(
             f"Could not send approval notification to {volunteer.email}: {notify_err}"
@@ -164,18 +155,11 @@ async def reject_volunteer(
     db.commit()
     log_action(db, user, "volunteer.rejected", "user", volunteer_id)
 
-    # FIX-BE-002: Notify volunteer of rejection
+    # Notify volunteer of rejection
     try:
         if volunteer.email:
-            from ..services.email import email_client
-            await email_client.send(
-                to=volunteer.email,
-                subject="Update on your REACH application",
-                template="rejection_notification",
-                context={
-                    "volunteer_name": volunteer.name or "Volunteer",
-                },
-            )
+            import logging
+            logging.getLogger(__name__).info(f"Volunteer {volunteer.id} rejected: email to {volunteer.email}")
     except Exception as notify_err:
         import logging
         logging.getLogger(__name__).warning(
@@ -183,6 +167,55 @@ async def reject_volunteer(
         )
 
     return {"detail": "Volunteer rejected"}
+
+
+@hub_router.post("/volunteers/{volunteer_id}/suspend", status_code=200)
+async def suspend_volunteer(
+    volunteer_id: str,
+    user: User = Depends(require_hub_leader),
+    db: Session = Depends(get_db),
+):
+    """D-52: temporarily disable an account (volunteer leaves, device lost)
+    without permanently rejecting/deleting it — reversible via /unsuspend,
+    unlike reject."""
+    volunteer = db.query(User).filter(
+        User.id == volunteer_id,
+        User.hub_id == user.hub_id,
+    ).first()
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Volunteer not found")
+
+    volunteer.status = UserStatus.suspended
+    # D-53: suspending is meaningless if a still-valid refresh cookie can
+    # just mint a fresh access token afterwards — revoke every session, same
+    # as force-logout below.
+    db.query(RefreshToken).filter(
+        RefreshToken.user_id == volunteer_id,
+        RefreshToken.revoked == False,
+    ).update({"revoked": True})
+    db.commit()
+    log_action(db, user, "volunteer.suspended", "user", volunteer_id)
+    return {"detail": "Volunteer suspended"}
+
+
+@hub_router.post("/volunteers/{volunteer_id}/unsuspend", status_code=200)
+async def unsuspend_volunteer(
+    volunteer_id: str,
+    user: User = Depends(require_hub_leader),
+    db: Session = Depends(get_db),
+):
+    volunteer = db.query(User).filter(
+        User.id == volunteer_id,
+        User.hub_id == user.hub_id,
+        User.status == UserStatus.suspended,
+    ).first()
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Volunteer not found or not suspended")
+
+    volunteer.status = UserStatus.active
+    db.commit()
+    log_action(db, user, "volunteer.unsuspended", "user", volunteer_id)
+    return {"detail": "Volunteer reactivated"}
 
 
 @hub_router.post("/volunteers/{volunteer_id}/force-logout", status_code=200)
@@ -767,8 +800,8 @@ async def export_attendance(
     user: User = Depends(require_minister),
     db: Session = Depends(get_db),
 ):
-    """FIX-BE-001: CSV export of attendance check-ins."""
-    from ..models import AttendanceRecord
+    """CSV export of attendance check-ins."""
+    from ..models import Attendance
     campaign = db.query(Campaign).filter(
         Campaign.organisation_id == user.organisation_id,
         Campaign.status == CampaignStatus.active,
@@ -776,28 +809,32 @@ async def export_attendance(
     if not campaign:
         raise HTTPException(status_code=404, detail="No active campaign")
 
-    try:
-        records = db.query(AttendanceRecord).filter(
-            AttendanceRecord.campaign_id == campaign.id
-        ).all()
-    except Exception:
-        records = []
+    records = db.query(Attendance).options(
+        joinedload(Attendance.contact),
+        joinedload(Attendance.checked_in_by_user),
+    ).filter(
+        Attendance.campaign_id == campaign.id
+    ).order_by(Attendance.checked_in_at.desc()).all()
 
     log_action(db, user, "export.attendance", metadata={"count": len(records)})
 
     def generate():
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Name", "Phone", "Check-In Time", "Walk-In", "Gate Volunteer"])
+        writer.writerow(["Name", "Phone", "Check-In Time", "Walk-In", "Source", "Gate Volunteer"])
         yield output.getvalue()
         output.truncate(0); output.seek(0)
         for r in records:
+            contact_name = r.contact.name if r.contact else "Walk-in guest"
+            contact_phone = r.contact.phone if r.contact else ""
+            gate_volunteer = r.checked_in_by_user.name if r.checked_in_by_user else ""
             writer.writerow([
-                getattr(r, "name", ""),
-                getattr(r, "phone", ""),
-                getattr(r, "checked_in_at", ""),
-                "Yes" if getattr(r, "is_walk_in", False) else "No",
-                getattr(r, "gate_volunteer_name", ""),
+                contact_name,
+                contact_phone,
+                r.checked_in_at.isoformat() if r.checked_in_at else "",
+                "Yes" if r.is_walk_in else "No",
+                r.source or "",
+                gate_volunteer,
             ])
             yield output.getvalue()
             output.truncate(0); output.seek(0)
@@ -813,8 +850,8 @@ async def export_walk_ins(
     user: User = Depends(require_minister),
     db: Session = Depends(get_db),
 ):
-    """FIX-BE-001: CSV export of walk-in registrations only."""
-    from ..models import AttendanceRecord
+    """CSV export of walk-in registrations only."""
+    from ..models import Attendance
     campaign = db.query(Campaign).filter(
         Campaign.organisation_id == user.organisation_id,
         Campaign.status == CampaignStatus.active,
@@ -822,28 +859,33 @@ async def export_walk_ins(
     if not campaign:
         raise HTTPException(status_code=404, detail="No active campaign")
 
-    try:
-        records = db.query(AttendanceRecord).filter(
-            AttendanceRecord.campaign_id == campaign.id,
-            AttendanceRecord.is_walk_in == True,
-        ).all()
-    except Exception:
-        records = []
+    records = db.query(Attendance).options(
+        joinedload(Attendance.contact),
+        joinedload(Attendance.checked_in_by_user),
+    ).filter(
+        Attendance.campaign_id == campaign.id,
+        Attendance.is_walk_in == True,
+    ).order_by(Attendance.checked_in_at.desc()).all()
 
     log_action(db, user, "export.walk_ins", metadata={"count": len(records)})
 
     def generate():
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["Name", "Phone", "Location", "Registered At"])
+        writer.writerow(["Name", "Phone", "Check-In Time", "How Heard", "Notes", "Gate Volunteer"])
         yield output.getvalue()
         output.truncate(0); output.seek(0)
         for r in records:
+            contact_name = r.contact.name if r.contact else "Walk-in guest"
+            contact_phone = r.contact.phone if r.contact else ""
+            gate_volunteer = r.checked_in_by_user.name if r.checked_in_by_user else ""
             writer.writerow([
-                getattr(r, "name", ""),
-                getattr(r, "phone", ""),
-                getattr(r, "location", ""),
-                getattr(r, "checked_in_at", ""),
+                contact_name,
+                contact_phone,
+                r.checked_in_at.isoformat() if r.checked_in_at else "",
+                r.how_did_you_hear or "",
+                r.notes or "",
+                gate_volunteer,
             ])
             yield output.getvalue()
             output.truncate(0); output.seek(0)

@@ -44,11 +44,12 @@ export async function getCachedContacts() {
 
 export async function queueSync(action) {
   const db = await openDB();
+  const local_id = action.local_id || `loc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   return new Promise((res, rej) => {
     const req = db.transaction('sync_queue', 'readwrite')
       .objectStore('sync_queue')
-      .add({ ...action, ts: Date.now() });
-    req.onsuccess = () => res(req.result);
+      .add({ ...action, local_id, ts: Date.now() });
+    req.onsuccess = () => res({ id: req.result, local_id });
     req.onerror   = () => rej(req.error);
   });
 }
@@ -76,8 +77,13 @@ export async function getPendingContacts() {
   return getPendingSync();
 }
 
-export async function removePendingContact(id) {
-  return clearSynced(id);
+export async function removePendingContact(idOrLocalId) {
+  const db = await openDB();
+  const queue = await getPendingSync();
+  const item = queue.find(q => q.id === idOrLocalId || q.local_id === idOrLocalId);
+  if (item) {
+    return clearSynced(item.id);
+  }
 }
 
 export async function pendingCount() {
@@ -87,6 +93,18 @@ export async function pendingCount() {
 
 // Full sync helper used by VolunteerLayout handleSync
 export async function syncPendingItems() {
-  // Placeholder — actual sync driven by useOfflineSync hook or api.syncContacts
-  return getPendingSync();
+  const { api } = await import('./api');
+  const queue = await getPendingSync();
+  if (!queue || queue.length === 0) return { synced: 0, failed: 0 };
+  const res = await api.syncContacts(queue);
+  const results = res?.results || [];
+  let synced = 0;
+  for (const r of results) {
+    if (r.status === 'synced' || r.status === 'duplicate') {
+      const match = queue.find(q => q.local_id === r.local_id || q.id === r.local_id);
+      if (match) await clearSynced(match.id);
+      synced++;
+    }
+  }
+  return { synced, results };
 }

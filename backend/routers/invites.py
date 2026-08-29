@@ -32,11 +32,15 @@ from ..auth import (
 )
 from ..dependencies import require_minister, get_current_user_allow_pending, log_action, get_client_ip
 from ..config import settings
+from ..limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["invites"])
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
-INVITE_EXPIRE_HOURS  = 48
+# D-46: standardized on reach-election's stronger token size (48 bytes of
+# urlsafe entropy vs 32) and longer expiry — 48h was too tight for real church
+# onboarding pace where a volunteer might not check their phone same-day.
+INVITE_EXPIRE_HOURS  = 24 * 7  # 7 days
 REFRESH_TOKEN_COOKIE = "reach_refresh"
 OTP_EXPIRE_MINUTES   = 10
 OTP_MAX_ATTEMPTS     = 5
@@ -48,9 +52,14 @@ ALLOWED_INVITE_ROLES = {
     UserRole.decisions_team,
 }
 
+# D-48: single canonical "no-oracle" message reused by every invite/claim
+# endpoint so a caller can't distinguish "not found" vs "expired" vs "claimed"
+# by response text alone.
+INVALID_INVITE_MSG = "This invite link is not valid or has expired."
+
 
 def _make_invite_token() -> tuple:
-    raw    = secrets.token_urlsafe(32)
+    raw    = secrets.token_urlsafe(48)
     hashed = hashlib.sha256(raw.encode()).hexdigest()
     return raw, hashed
 
@@ -67,9 +76,10 @@ class ExtendedInviteCreate(BaseModel):
 
 
 @router.post("/invite", response_model=InviteOut)
+@limiter.limit("30/minute")
 async def create_invite(
-    body: ExtendedInviteCreate,
     request: Request,
+    body: ExtendedInviteCreate,
     db: Session = Depends(get_db),
     minister: User = Depends(require_minister),
 ):
@@ -150,15 +160,13 @@ async def create_invite(
 # ─── Preview Invite ───────────────────────────────────────────────────────────
 
 @router.get("/invite/preview", response_model=InvitePreview)
-async def preview_invite(token: str, request: Request, db: Session = Depends(get_db)):
-    # P1-1.6: Rate limited — 20/minute per IP
-    from slowapi import Limiter
-    from slowapi.util import get_remote_address
-    # Rate limit applied via middleware; identical error for all bad states (no oracle)
-    INVALID_MSG = "This invite link is not valid or has expired."
-
+@limiter.limit("20/minute")
+async def preview_invite(request: Request, token: str, db: Session = Depends(get_db)):
+    # D-43/D-41: this was previously "rate limited" only by an unused inline
+    # import + a comment — the decorator above is what actually enforces
+    # 20/minute per IP now. Identical error for all bad states (no oracle).
     if not token:
-        return InvitePreview(valid=False, error=INVALID_MSG)
+        return InvitePreview(valid=False, error=INVALID_INVITE_MSG)
 
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     now        = datetime.now(timezone.utc)
@@ -167,7 +175,7 @@ async def preview_invite(token: str, request: Request, db: Session = Depends(get
 
     # Return identical message for all invalid states — prevents oracle enumeration
     if not invite or invite.claimed_at is not None or invite.expires_at < now:
-        return InvitePreview(valid=False, error=INVALID_MSG)
+        return InvitePreview(valid=False, error=INVALID_INVITE_MSG)
 
     hub = db.query(Hub).filter(Hub.id == invite.hub_id).first() if invite.hub_id else None
 
@@ -194,9 +202,10 @@ class InviteOTPRequest(BaseModel):
 
 
 @router.post("/invite/send-otp", status_code=200)
+@limiter.limit("5/minute")
 async def send_invite_otp(
-    body: InviteOTPRequest,
     request: Request,
+    body: InviteOTPRequest,
     db: Session = Depends(get_db),
 ):
     from ..schemas import validate_phone as vp
@@ -247,9 +256,10 @@ async def send_invite_otp(
 # ─── Claim Invite ─────────────────────────────────────────────────────────────
 
 @router.post("/claim-invite", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def claim_invite(
-    body: ClaimInviteRequest,
     request: Request,
+    body: ClaimInviteRequest,
     response: Response,
     db: Session = Depends(get_db),
 ):
@@ -257,12 +267,11 @@ async def claim_invite(
     now        = datetime.now(timezone.utc)
 
     invite = db.query(InviteToken).filter(InviteToken.token_hash == token_hash).first()
-    if not invite:
-        raise HTTPException(status_code=400, detail="Invite not found. Check your link.")
-    if invite.claimed_at is not None:
-        raise HTTPException(status_code=400, detail="This invite has already been used.")
-    if invite.expires_at < now:
-        raise HTTPException(status_code=400, detail="This invite has expired. Ask your minister for a new one.")
+    # D-48: identical message for not-found / already-claimed / expired so a
+    # caller can't distinguish invite states by response text (same principle
+    # already applied in preview_invite — now applied consistently here too).
+    if not invite or invite.claimed_at is not None or invite.expires_at < now:
+        raise HTTPException(status_code=400, detail=INVALID_INVITE_MSG)
 
     identifier_hash = sha256_hash(body.phone)
     otp_session = db.query(OTPSession).filter(OTPSession.identifier_hash == identifier_hash).first()
@@ -347,7 +356,7 @@ async def claim_invite(
 
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE, value=raw_refresh,
-        httponly=True, secure=True, samesite="none",
+        httponly=True, secure=settings.ENVIRONMENT != "development", samesite="none",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, path="/",
     )
 
