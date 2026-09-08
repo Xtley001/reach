@@ -109,9 +109,9 @@ def seed():
 
             org = Organisation(name=args.org, slug=slug)
             db.add(org); db.commit(); db.refresh(org)
-            print(f"  ✓  Created org:      {org.name}")
+            print(f"  [OK] Created org:      {org.name}")
         else:
-            print(f"  –  Org exists:      {org.name}")
+            print(f"  [-]  Org exists:      {org.name}")
 
         # ── Campaign ──────────────────────────────────────────────────
         campaign = (
@@ -129,9 +129,9 @@ def seed():
                 target_count=5000,
             )
             db.add(campaign); db.commit(); db.refresh(campaign)
-            print(f"  ✓  Created campaign: {campaign.name}")
+            print(f"  [OK] Created campaign: {campaign.name}")
         else:
-            print(f"  –  Campaign exists:  {campaign.name}")
+            print(f"  [-]  Campaign exists:  {campaign.name}")
 
         # ── Hub ───────────────────────────────────────────────────────
         hub = (
@@ -149,9 +149,9 @@ def seed():
                 description="Covers Surulere, Orile, Iganmu and Eric Moore.",
             )
             db.add(hub); db.commit(); db.refresh(hub)
-            print(f"  ✓  Created hub:      {hub.name}")
+            print(f"  [OK] Created hub:      {hub.name}")
         else:
-            print(f"  –  Hub exists:       {hub.name}")
+            print(f"  [-]  Hub exists:       {hub.name}")
 
         # ── User upsert helper ────────────────────────────────────────
         def upsert(role, name, email=None, phone=None, hub_id=None,
@@ -179,7 +179,7 @@ def seed():
                     existing.hub_id = hub_id
                 db.commit()
                 label = email or phone
-                print(f"  –  Updated  [{role.value:<17}] {label}")
+                print(f"  [-]  Updated  [{role.value:<17}] {label}")
                 return existing
 
             u = User(
@@ -195,7 +195,7 @@ def seed():
             )
             db.add(u); db.commit(); db.refresh(u)
             label = email or phone
-            print(f"  ✓  Created  [{role.value:<17}] {label}")
+            print(f"  [OK] Created  [{role.value:<17}] {label}")
             return u
 
         existing_admin = (
@@ -234,28 +234,28 @@ def seed():
 
         # ── Summary ───────────────────────────────────────────────────
         print("""
-  ────────────────────────────────────────────────────────
+  --------------------------------------------------------
   LOGIN CREDENTIALS
-  ────────────────────────────────────────────────────────""")
+  --------------------------------------------------------""")
         print(f"  Minister    {ADMIN_EMAIL}")
         print(f"              phone: {admin_phone}")
-        print(f"              → /admin")
+        print(f"              -> /admin")
         print()
         print(f"  Hub Leader  {HL_EMAIL}")
         print(f"              phone: {hub_phone}")
-        print(f"              → /hub-login  (email or phone tab)")
+        print(f"              -> /hub-login  (email or phone tab)")
         print()
         print(f"  Volunteer   {VOL_EMAIL}")
         print(f"              phone: {volunteer_phone}")
-        print(f"              → /login  (email or phone tab)")
+        print(f"              -> /login  (email or phone tab)")
         print("""
   All OTPs land in your main Gmail inbox (email) or via SMS (phone).
-  ────────────────────────────────────────────────────────
+  --------------------------------------------------------
 """)
 
     except Exception as e:
         db.rollback()
-        print(f"\n  ✗  Seed failed: {e}\n")
+        print(f"\n  [ERROR] Seed failed: {e}\n")
         import traceback; traceback.print_exc()
         raise
     finally:
