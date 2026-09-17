@@ -31,7 +31,7 @@ router = APIRouter(tags=["attendance"])
 
 def _require_registration_team(user: User = Depends(get_current_user)):
     allowed = {UserRole.registration_team, UserRole.minister, UserRole.hub_leader}
-    if user.role not in allowed:
+    if user.role not in allowed and not getattr(user, "is_registration_team", False):
         raise HTTPException(status_code=403, detail="Registration Team access required.")
     return user
 

@@ -114,6 +114,7 @@ async def volunteer_dashboard(
     ).filter(
         Contact.added_by == user.id,
         Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
     ).all()
 
     statuses = _latest_statuses(contacts)
@@ -162,6 +163,14 @@ def _calculate_streak(user_id: str, db: Session) -> int:
 
     for row in rows:
         day = row.day
+        if isinstance(day, str):
+            try:
+                day = datetime.strptime(day[:10], "%Y-%m-%d").date()
+            except Exception:
+                continue
+        elif isinstance(day, datetime):
+            day = day.date()
+
         if day == expected:
             streak += 1
             expected = expected - timedelta(days=1)
@@ -210,6 +219,7 @@ async def hub_dashboard(
     ).filter(
         Contact.added_by.in_(volunteer_ids),
         Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
     ).all()
 
     statuses = _latest_statuses(contacts)
@@ -254,6 +264,7 @@ async def hub_dashboard(
 
     return {
         "hub_name": hub_name,
+        "programme_date": campaign.programme_date.isoformat() if campaign.programme_date else None,
         "total_contacts": total,
         "confirmed": confirmed,
         "messages_sent": messages_sent,
@@ -287,6 +298,7 @@ async def minister_dashboard(
     ).filter(
         Contact.campaign_id == campaign.id,
         Contact.organisation_id == user.organisation_id,
+        Contact.deleted_at.is_(None),
     ).all()
 
     statuses = _latest_statuses(contacts)
@@ -295,7 +307,8 @@ async def minister_dashboard(
     messages_sent = db.query(MessageSend).join(
         Contact, MessageSend.contact_id == Contact.id
     ).filter(
-        Contact.campaign_id == campaign.id
+        Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
     ).count()
     unreached = sum(1 for s in statuses.values() if s is None)
 
@@ -317,6 +330,8 @@ async def minister_dashboard(
 
     return {
         "campaign_name": campaign.name,
+        "active_campaign_id": str(campaign.id),
+        "attendance_mode_open": bool(campaign.attendance_mode_open),
         "total_contacts": total,
         "confirmed": confirmed,
         "messages_sent": messages_sent,

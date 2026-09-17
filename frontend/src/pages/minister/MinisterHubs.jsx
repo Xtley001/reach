@@ -4,6 +4,37 @@ import { api } from '../../lib/api';
 import { PageSkeleton, EmptyState, Icon } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
+function HubFormCard({ editing, form, setForm, onCancel, onSave, saving }) {
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+        {editing ? 'Edit Hub' : 'New Hub'}
+      </div>
+      {[
+        ['hub_name', 'Hub Name', true],
+        ['hub_zone', 'Zone / Area'],
+        ['leader_name', 'Hub Leader Name'],
+        ['leader_phone', 'Hub Leader Phone'],
+      ].map(([k, l, req]) => (
+        <div key={k} className="form-group">
+          <label className="field-label">{l}{req && <span className="required">*</span>}</label>
+          <input
+            className="field-input"
+            value={form[k]}
+            onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))}
+          />
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-ghost" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-primary" onClick={onSave} disabled={saving}>
+          {saving ? <div className="spinner" style={{ width: 16, height: 16 }} /> : (editing ? 'Save Changes' : 'Create Hub')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function MinisterHubs() {
   const navigate  = useNavigate();
   const [hubs, setHubs]     = useState([]);
@@ -68,37 +99,6 @@ export default function MinisterHubs() {
     setSaving(false);
   }
 
-  function FormCard() {
-    return (
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
-          {editing ? 'Edit Hub' : 'New Hub'}
-        </div>
-        {[
-          ['hub_name', 'Hub Name', true],
-          ['hub_zone', 'Zone / Area'],
-          ['leader_name', 'Hub Leader Name'],
-          ['leader_phone', 'Hub Leader Phone'],
-        ].map(([k, l, req]) => (
-          <div key={k} className="form-group">
-            <label className="field-label">{l}{req && <span className="required">*</span>}</label>
-            <input
-              className="field-input"
-              value={form[k]}
-              onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))}
-            />
-          </div>
-        ))}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost" onClick={cancel}>Cancel</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? <div className="spinner" style={{ width: 16, height: 16 }} /> : (editing ? 'Save Changes' : 'Create Hub')}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="page">
       <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -111,7 +111,16 @@ export default function MinisterHubs() {
         )}
       </div>
       <div className="page-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        {showNew && <FormCard />}
+        {showNew && (
+          <HubFormCard
+            editing={editing}
+            form={form}
+            setForm={setForm}
+            onCancel={cancel}
+            onSave={save}
+            saving={saving}
+          />
+        )}
         {loading ? <PageSkeleton /> : hubs.length === 0 && !showNew ? (
           <EmptyState icon={<Icon name="building" size={32} />} message="No hubs yet. Create a hub to start inviting hub leaders." />
         ) : hubs.map(hub => {
@@ -122,7 +131,16 @@ export default function MinisterHubs() {
               background: 'var(--bg-2)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)', padding: '16px 20px', marginBottom: 12,
             }}>
-              {editing === hub.hub_id ? <FormCard /> : (
+              {editing === hub.hub_id ? (
+                <HubFormCard
+                  editing={editing}
+                  form={form}
+                  setForm={setForm}
+                  onCancel={cancel}
+                  onSave={save}
+                  saving={saving}
+                />
+              ) : (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                     <div>

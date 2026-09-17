@@ -7,7 +7,7 @@
  *   same encounter. Each checked type creates its own Decision record so that
  *   stats, exports, and queries stay clean.
  */
-import { useState } from 'react';
+import { useState, createContext, useContext } from 'react';
 import { api } from '../lib/api';
 import { toast } from '../lib/toast';
 import { useAuth } from '../hooks/useAuth';
@@ -22,6 +22,56 @@ const EMPTY_FORM = {
   wants_church_referral:'', referral_area:'',
   age_range:'', gender:'', occupation:'', how_did_you_hear:'', brought_by:'', notes:'',
 };
+
+const DecisionFormContext = createContext({ form: {}, set: () => {} });
+
+function Field({ label, k, req, type = 'text', hint }) {
+  const { form, set } = useContext(DecisionFormContext);
+  return (
+    <div className="form-group">
+      <label className="field-label">{label}{req && <span className="required">*</span>}</label>
+      <input className="field-input" type={type} value={form[k] ?? ''} onChange={e => set(k, e.target.value)} placeholder={hint} />
+    </div>
+  );
+}
+
+function SelectField({ label, k, req, options }) {
+  const { form, set } = useContext(DecisionFormContext);
+  return (
+    <div className="form-group">
+      <label className="field-label">{label}{req && <span className="required">*</span>}</label>
+      <select className="field-select" value={form[k] ?? ''} onChange={e => set(k, e.target.value)}>
+        <option value="">Select…</option>
+        {options.map(o => <option key={o.value || o} value={o.value || o}>{o.label || o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function YesNoField({ label, k, req, options = [['true','Yes'],['false','No']] }) {
+  const { form, set } = useContext(DecisionFormContext);
+  return (
+    <div className="form-group">
+      <label className="field-label">{label}{req && <span className="required">*</span>}</label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {options.map(([v, l]) => (
+          <button
+            type="button"
+            key={v}
+            onClick={() => set(k, v)}
+            style={{
+              height: 40, flex: 1,
+              border: `1px solid ${form[k] === v ? 'var(--accent)' : 'var(--border)'}`,
+              background: form[k] === v ? 'var(--accent)' : 'transparent',
+              color: form[k] === v ? 'var(--accent-fg)' : 'var(--text-2)',
+              borderRadius: 'var(--radius)', fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer',
+            }}
+          >{l}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function DecisionsLayout() {
   const { user, logout } = useAuth();
@@ -101,46 +151,9 @@ export default function DecisionsLayout() {
     setLoading(false);
   }
 
-  const Field = ({ label, k, req, type = 'text', hint }) => (
-    <div className="form-group">
-      <label className="field-label">{label}{req && <span className="required">*</span>}</label>
-      <input className="field-input" type={type} value={form[k]} onChange={e => set(k, e.target.value)} placeholder={hint} />
-    </div>
-  );
-
-  const SelectField = ({ label, k, req, options }) => (
-    <div className="form-group">
-      <label className="field-label">{label}{req && <span className="required">*</span>}</label>
-      <select className="field-select" value={form[k]} onChange={e => set(k, e.target.value)}>
-        <option value="">Select…</option>
-        {options.map(o => <option key={o.value || o} value={o.value || o}>{o.label || o}</option>)}
-      </select>
-    </div>
-  );
-
-  const YesNoField = ({ label, k, req, options = [['true','Yes'],['false','No']] }) => (
-    <div className="form-group">
-      <label className="field-label">{label}{req && <span className="required">*</span>}</label>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {options.map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => set(k, v)}
-            style={{
-              height: 40, flex: 1,
-              border: `1px solid ${form[k] === v ? 'var(--accent)' : 'var(--border)'}`,
-              background: form[k] === v ? 'var(--accent)' : 'transparent',
-              color: form[k] === v ? 'var(--accent-fg)' : 'var(--text-2)',
-              borderRadius: 'var(--radius)', fontFamily: 'var(--font-sans)', fontSize: 13, cursor: 'pointer',
-            }}
-          >{l}</button>
-        ))}
-      </div>
-    </div>
-  );
-
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+    <DecisionFormContext.Provider value={{ form, set }}>
+      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
       <div className="topbar glass">
         <div>
           <div className="topbar-brand">Decisions</div>
@@ -300,5 +313,6 @@ export default function DecisionsLayout() {
         </button>
       </div>
     </div>
+    </DecisionFormContext.Provider>
   );
 }

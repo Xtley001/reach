@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../../lib/api';
 import { cached, TTL } from '../../lib/cache';
-import { StatusBadge, PageSkeleton, EmptyState, Modal, TagChecklist, CallTimeline } from '../../components/UI';
+import { StatusBadge, PageSkeleton, EmptyState, Modal, TagChecklist, CallTimeline, Icon } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 export default function HubContacts() {

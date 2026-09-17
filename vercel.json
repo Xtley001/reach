@@ -1,11 +1,15 @@
 {
   "rewrites": [
     {
+      "source": "/v1/:path*",
+      "destination": "https://reach-api-xg6c.onrender.com/v1/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://reach-api-xg6c.onrender.com/:path*"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|v1/).*)",
       "destination": "/index.html"
     }
   ],

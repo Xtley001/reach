@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, BASE } from '../../lib/api';
+import { api } from '../../lib/api';
 import { toast } from '../../lib/toast';
 
 // FIX-004: Correct backend URLs; mark unavailable exports as disabled not hidden
@@ -29,9 +29,8 @@ const EXPORTS = [
     id: 'decisions',
     label: 'Decisions / Altar Call',
     desc: 'All decision records, counsellor, fields',
-    path: null, // uses special decisions export
+    path: '/decisions/export/csv',
     available: true,
-    isDecisions: true,
   },
   {
     id: 'attendance',
@@ -65,11 +64,7 @@ export default function MinisterExports() {
     if (!exp.available) return;
     setDownloading(exp.id);
     try {
-      if (exp.isDecisions) {
-        window.open(api.exportDecisions(), '_blank');
-      } else {
-        await api.downloadExport(exp.path);
-      }
+      await api.downloadExport(exp.path);
       setLastExported(le => ({ ...le, [exp.id]: new Date() }));
       toast('Export started', 'success');
     } catch (e) {

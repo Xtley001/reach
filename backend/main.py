@@ -101,9 +101,17 @@ async def lifespan(app: FastAPI):
                 _db.close()
             except Exception as _e:
                 logger.warning(f"Pool heartbeat failed: {_e}")
-    _asyncio.create_task(_pool_heartbeat())
+    _heartbeat_task = _asyncio.create_task(_pool_heartbeat())
 
     yield
+
+    # Teardown
+    _heartbeat_task.cancel()
+    if getattr(app.state, "redis", None):
+        try:
+            await app.state.redis.close()
+        except Exception:
+            pass
 
 
 app = FastAPI(
@@ -155,7 +163,7 @@ async def security_headers(request: Request, call_next):
         "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https://res.cloudinary.com; "
+        "img-src 'self' data: https://res.cloudinary.com https://*.supabase.co; "
         "connect-src 'self'; "
         "frame-ancestors 'none';"
     )

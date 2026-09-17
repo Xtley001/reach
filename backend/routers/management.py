@@ -521,7 +521,10 @@ async def demographics(
         return {"locations": [], "status_breakdown": {}, "hub_breakdown": [], "weekly_trend": [], "total_contacts": 0}
 
     # Build base contact filter, optionally scoped to a hub
-    base_filter = [Contact.campaign_id == campaign.id]
+    base_filter = [
+        Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
+    ]
     if hub_id:
         hub_vol_ids = [
             v.id for v in db.query(User.id).filter(User.hub_id == hub_id).all()
@@ -569,18 +572,38 @@ async def demographics(
     ).join(Contact, Contact.added_by == User.id).filter(
         User.hub_id.in_(hub_ids),
         Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
     ).group_by(User.hub_id).all()
     c_count = {r.hub_id: r.cnt for r in contact_rows}
 
-    confirmed_rows = db.query(
-        User.hub_id, func.count(Contact.id).label("cnt")
-    ).join(Contact, Contact.added_by == User.id).join(
-        ContactStatus, ContactStatus.contact_id == Contact.id
-    ).filter(
-        User.hub_id.in_(hub_ids),
-        Contact.campaign_id == campaign.id,
-        ContactStatus.status_code == ContactStatusCode.coming,
-    ).group_by(User.hub_id).all()
+    latest_status_subq = (
+        db.query(
+            ContactStatus.contact_id,
+            func.max(ContactStatus.updated_at).label("last_update")
+        )
+        .group_by(ContactStatus.contact_id)
+        .subquery()
+    )
+    confirmed_rows = (
+        db.query(User.hub_id, func.count(Contact.id).label("cnt"))
+        .join(Contact, Contact.added_by == User.id)
+        .join(latest_status_subq, latest_status_subq.c.contact_id == Contact.id)
+        .join(
+            ContactStatus,
+            and_(
+                ContactStatus.contact_id == Contact.id,
+                ContactStatus.updated_at == latest_status_subq.c.last_update,
+                ContactStatus.status_code == ContactStatusCode.coming,
+            ),
+        )
+        .filter(
+            User.hub_id.in_(hub_ids),
+            Contact.campaign_id == campaign.id,
+            Contact.deleted_at.is_(None),
+        )
+        .group_by(User.hub_id)
+        .all()
+    )
     conf_count = {r.hub_id: r.cnt for r in confirmed_rows}
 
     hub_breakdown = []
@@ -612,8 +635,12 @@ async def demographics(
         week_buckets[key] = week_buckets.get(key, 0) + 1
     weekly_trend = [{"week": k, "added": v} for k, v in sorted(week_buckets.items())]
 
+    loc_list = [{"location": loc or "Unknown", "count": cnt} for loc, cnt in location_counts]
+    top_loc_dict = {loc or "Unknown": cnt for loc, cnt in location_counts}
+
     return {
-        "locations":       [{"location": loc, "count": cnt} for loc, cnt in location_counts],
+        "locations":       loc_list,
+        "top_locations":   top_loc_dict,
         "status_breakdown": {k: {"count": v, "pct": round(v/total*100, 1) if total else 0}
                               for k, v in status_counts.items()},
         "total_contacts":  total,

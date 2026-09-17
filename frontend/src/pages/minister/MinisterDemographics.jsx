@@ -61,7 +61,7 @@ export default function MinisterDemographics() {
     week: w.week.slice(5), added: w.added,
   }));
 
-  const topLocs = Object.entries(data?.top_locations || {})
+  const topLocs = Object.entries(data?.top_locations || data?.locations || {})
     .sort((a, b) => b[1] - a[1]).slice(0, 8);
   const maxLoc = topLocs[0]?.[1] || 1;
 

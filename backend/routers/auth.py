@@ -305,12 +305,13 @@ async def verify_otp(
     db.add(rt)
     db.commit()
 
+    is_secure = settings.ENVIRONMENT != "development"
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE,
         value=raw_refresh,
         httponly=True,
-        secure=settings.ENVIRONMENT != "development",
-        samesite="none",
+        secure=is_secure,
+        samesite="none" if is_secure else "lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path="/",
     )
@@ -410,12 +411,13 @@ async def refresh_token(
         )
     db.commit()
 
+    is_secure = settings.ENVIRONMENT != "development"
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE,
         value=new_raw,
         httponly=True,
-        secure=settings.ENVIRONMENT != "development",
-        samesite="none",
+        secure=is_secure,
+        samesite="none" if is_secure else "lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path="/",
     )
@@ -458,8 +460,39 @@ async def revoke_all_sessions(
 # ─── Me ───────────────────────────────────────────────────────────────────────
 
 @router.get("/me", response_model=UserOut)
-async def get_me(user: User = Depends(get_current_user_allow_pending)):
-    return user
+async def get_me(
+    user: User = Depends(get_current_user_allow_pending),
+    db: Session = Depends(get_db),
+):
+    leader_name = None
+    leader_phone = None
+    if user.hub_id:
+        leader = db.query(User).filter(
+            User.hub_id == user.hub_id,
+            User.role == UserRole.hub_leader,
+            User.status == UserStatus.active,
+        ).first()
+        if leader:
+            leader_name = leader.name
+            leader_phone = leader.phone
+
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    status_val = user.status.value if hasattr(user.status, "value") else str(user.status)
+
+    return UserOut(
+        id=str(user.id),
+        name=user.name or "",
+        email=user.email,
+        phone=user.phone,
+        role=role_val,
+        status=status_val,
+        hub_id=str(user.hub_id) if user.hub_id else None,
+        avatar_url=user.avatar_url,
+        is_registration_team=bool(user.is_registration_team),
+        is_decisions_team=bool(user.is_decisions_team),
+        hub_leader_name=leader_name,
+        hub_leader_phone=leader_phone,
+    )
 
 
 # ─── Sessions ─────────────────────────────────────────────────────────────────

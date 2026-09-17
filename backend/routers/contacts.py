@@ -82,7 +82,10 @@ async def get_contact_tags(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    contact = db.query(Contact).filter(
+        Contact.id == contact_id,
+        Contact.deleted_at.is_(None),
+    ).first()
     if not contact:
         raise HTTPException(status_code=403, detail="Access denied")
     verify_contact_ownership(contact, user, db)
@@ -111,7 +114,10 @@ async def toggle_contact_tag(
     row; it should behave as "make sure this tag is/isn't set" rather than
     "add a new tag application".
     """
-    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    contact = db.query(Contact).filter(
+        Contact.id == contact_id,
+        Contact.deleted_at.is_(None),
+    ).first()
     if not contact:
         raise HTTPException(status_code=403, detail="Access denied")
     verify_contact_ownership(contact, user, db)
@@ -399,6 +405,7 @@ async def list_contacts(
     ).filter(
         Contact.added_by == user.id,
         Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
     )
 
     contacts = query.order_by(Contact.created_at.desc()).all()
@@ -447,7 +454,10 @@ async def get_contact(
     contact = db.query(Contact).options(
         joinedload(Contact.statuses),
         joinedload(Contact.message_sends),
-    ).filter(Contact.id == contact_id).first()
+    ).filter(
+        Contact.id == contact_id,
+        Contact.deleted_at.is_(None),
+    ).first()
 
     if not contact:
         # 403 not 404 — don't confirm existence to unauthorised callers
@@ -489,7 +499,10 @@ async def update_status(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    contact = db.query(Contact).filter(
+        Contact.id == contact_id,
+        Contact.deleted_at.is_(None),
+    ).first()
     if not contact:
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -563,6 +576,7 @@ async def contacts_to_call(
     ).filter(
         Contact.added_by == user.id,
         Contact.campaign_id == campaign.id,
+        Contact.deleted_at.is_(None),
     ).all()
 
     priority_order = {

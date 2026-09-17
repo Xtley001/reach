@@ -33,7 +33,7 @@ DECISION_TYPES = {"salvation", "rededication", "holy_spirit", "healing", "prayer
 
 def _require_decisions_team(user: User = Depends(get_current_user)):
     allowed = {UserRole.decisions_team, UserRole.minister, UserRole.hub_leader}
-    if user.role not in allowed:
+    if user.role not in allowed and not getattr(user, "is_decisions_team", False):
         raise HTTPException(status_code=403, detail="Decisions Team access required.")
     return user
 

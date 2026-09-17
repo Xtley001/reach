@@ -57,7 +57,7 @@ clean-otps:
 	psql "$(DATABASE_URL)" -c "DELETE FROM refresh_tokens WHERE revoked = TRUE AND expires_at < now() - INTERVAL '7 days';"
 	@echo "✓ Done."
 
-seed:
+seed-demo:
 	python -m backend.seed_demo --email $(SEED_EMAIL) --phone $(SEED_PHONE) --count 5000
 	psql $(DATABASE_URL) -c "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_demographics;"
 	python -m backend.seed_attendance --email $(SEED_EMAIL) --phone $(SEED_PHONE) --count 500

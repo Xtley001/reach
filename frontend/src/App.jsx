@@ -169,6 +169,8 @@ function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route path="/hub/*" element={<HubLeaderLayout />} />
+        <Route path="/attend" element={<AttendLayout />} />
+        <Route path="/decisions" element={<DecisionsLayout />} />
         <Route path="*"      element={<Navigate to="/hub/dashboard" replace />} />
       </Routes>
     </Suspense>
@@ -194,12 +196,16 @@ function AppRoutes() {
 
   // Volunteer
   return (
-    <Routes>
-      <Route path="/vol/*"   element={<VolunteerLayout />} />
-      <Route path="/login"   element={<LoginPage />} />
-      <Route path="/pending" element={<PendingScreen />} />
-      <Route path="*"        element={<Navigate to="/vol/home" replace />} />
-    </Routes>
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/vol/*"   element={<VolunteerLayout />} />
+        {user.is_registration_team && <Route path="/attend" element={<AttendLayout />} />}
+        {user.is_decisions_team && <Route path="/decisions" element={<DecisionsLayout />} />}
+        <Route path="/login"   element={<LoginPage />} />
+        <Route path="/pending" element={<PendingScreen />} />
+        <Route path="*"        element={<Navigate to="/vol/home" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 

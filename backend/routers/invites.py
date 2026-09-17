@@ -354,9 +354,10 @@ async def claim_invite(
     db.add(rt)
     db.commit()
 
+    is_secure = settings.ENVIRONMENT != "development"
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE, value=raw_refresh,
-        httponly=True, secure=settings.ENVIRONMENT != "development", samesite="none",
+        httponly=True, secure=is_secure, samesite="none" if is_secure else "lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, path="/",
     )
 

@@ -71,13 +71,15 @@ async def upload_user_avatar(
         raise HTTPException(status_code=400, detail="Avatar must be under 5 MB")
     
     url = await upload_avatar(user_id=user.id, data=data, content_type=avatar.content_type)
-    if url:
-        user.avatar_url = url
-        db.commit()
-        db.refresh(user)
+    if not url:
+        raise HTTPException(status_code=502, detail="Failed to upload avatar to storage. Please try again.")
+
+    user.avatar_url = url
+    db.commit()
+    db.refresh(user)
 
     return {
-        "id":         user.id,
+        "id":         str(user.id),
         "avatar_url": user.avatar_url,
     }
 

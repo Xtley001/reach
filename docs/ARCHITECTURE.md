@@ -11,9 +11,9 @@ Vercel (React + Vite, CDN)
           /vol/* /hub/* /admin-panel/* /attend /decisions
         │ HTTPS cross-origin
         ▼
-Render (FastAPI, Python 3.11)
-  Prefix: /api
-  Routes: /auth/* /onboarding/* /users/* /contacts/* /hub/*
+Render (FastAPI, Python 3.11+)
+  Prefix: /v1
+  Routes: /auth/* /users/* /contacts/* /hubs/* /invites/*
           /attendance/* /decisions/* /templates/* /management/*
         │
         ▼
@@ -111,5 +111,5 @@ All Python enums inherit `(str, enum.Enum)` so `.value` serialises as `"coming"`
 
 ## File Upload
 
-Avatars: frontend sends `multipart/form-data` to `PATCH /users/me/profile`. Backend pipes to Cloudinary with `public_id = reach/avatars/{user_id}` — overwrites on re-upload, no orphaned files.
+Avatars: frontend sends `multipart/form-data` to `POST /users/me/avatar`. Backend pipes to Supabase Storage (`avatars` public bucket) or fallback Cloudinary with `avatars/{user_id}.ext` — overwrites on re-upload, no orphaned files.
 Max size: 5 MB. Accepted types: JPEG, PNG, WebP.

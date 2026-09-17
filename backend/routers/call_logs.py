@@ -140,7 +140,10 @@ async def get_call_timeline(
 ):
     """F-73: full call timeline for a contact, newest first — who called,
     when, receptivity, availability, comment."""
-    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    contact = db.query(Contact).filter(
+        Contact.id == contact_id,
+        Contact.deleted_at.is_(None),
+    ).first()
     if not contact:
         raise HTTPException(status_code=403, detail="Access denied")
     verify_contact_ownership(contact, user, db)
@@ -166,10 +169,12 @@ async def get_my_reminders(
     from datetime import timedelta
 
     horizon = datetime.now(timezone.utc) + timedelta(days=14)
-    logs = db.query(CallLog).options(joinedload(CallLog.contact)).filter(
+    logs = db.query(CallLog).join(Contact, CallLog.contact_id == Contact.id).options(joinedload(CallLog.contact)).filter(
         CallLog.called_by == user.id,
         CallLog.remind_at.isnot(None),
         CallLog.remind_at <= horizon,
+        Contact.deleted_at.is_(None),
+        Contact.added_by == user.id,
     ).order_by(CallLog.remind_at.asc()).all()
 
     return {
@@ -183,6 +188,6 @@ async def get_my_reminders(
                 "comment": cl.comment,
             }
             for cl in logs
-            if cl.contact and cl.contact.added_by == user.id  # still owned by this volunteer
+            if cl.contact and cl.contact.added_by == user.id and cl.contact.deleted_at is None
         ]
     }

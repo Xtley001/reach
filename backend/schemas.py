@@ -102,12 +102,18 @@ class RefreshResponse(BaseModel):
 
 
 class UserOut(BaseModel):
-    id:       str
-    name:     str
-    email:    Optional[str] = None
-    phone:    Optional[str] = None
-    role:     str
-    status:   str
+    id:                   str
+    name:                 Optional[str] = ""
+    email:                Optional[str] = None
+    phone:                Optional[str] = None
+    role:                 str
+    status:               str
+    hub_id:               Optional[str] = None
+    avatar_url:           Optional[str] = None
+    is_registration_team: bool = False
+    is_decisions_team:    bool = False
+    hub_leader_name:      Optional[str] = None
+    hub_leader_phone:     Optional[str] = None
 
 
 class ActiveSessionOut(BaseModel):

@@ -161,11 +161,53 @@ In the Vercel **Environment Variables** section:
 
 ---
 
-## 6. Maintenance & Disaster Recovery
+## 6. Pre-Flight Checklist & Troubleshooting
 
-- **To run future schema migrations:**
-  Render automatically runs `alembic upgrade head` on every deploy.
-- **To inspect database tables:**
-  Use the Supabase **Table Editor** to view contacts, users, hubs, and attendance logs in real time.
-- **To view backend logs:**
-  Go to Render → `reach-api` → **Logs**.
+### 6.1 Pre-Flight Deployment Checklist
+- [ ] Backend tests passing: `DATABASE_URL="sqlite:///:memory:" pytest backend/tests/`
+- [ ] Frontend tests passing: `npm run test`
+- [ ] Frontend production build passing: `npm run build`
+- [ ] Supabase connection string set to **Session mode** (Port `5432`)
+- [ ] Supabase `avatars` bucket created and set to **Public**
+- [ ] Brevo transactional API key active and sender address verified
+- [ ] `ALLOWED_ORIGINS` on Render matches Vercel URL (no trailing slash)
+- [ ] `FRONTEND_URL` on Render matches Vercel URL
+- [ ] `VITE_API_URL` on Vercel points to Render backend
+
+---
+
+### 6.2 Common Gotchas & Troubleshooting
+
+- **Database Connection Fails (`psycopg2 could not connect`):**
+  Ensure you are using the **Session mode** connection string (Port `5432`), not Transaction mode (Port `6543`). In Supabase: **Settings** → **Database** → **Connection string** → **URI (Session mode)**.
+- **CORS Error in Browser Console:**
+  Ensure `ALLOWED_ORIGINS` in Render environment matches your Vercel URL exactly (e.g. `https://reach-xyz.vercel.app`, no trailing slash).
+- **OTP Not Arriving via Email:**
+  Verify that `BREVO_API_KEY` is valid and `BREVO_SENDER` is registered and verified in your Brevo dashboard under **Senders & IP**.
+- **404 on Direct Route Navigation (`/login`, `/admin`, `/vol/home`):**
+  Ensure [`vercel.json`](file:///c:/Users/pc/Desktop/reach/vercel.json) rewrites are deployed, routing SPA history mode fallback to `/index.html`.
+- **Render Service Sleeps on Inactivity (Free Tier):**
+  On Render free tier, web services spin down after 15 minutes of inactivity and take ~30 seconds to wake up on the next request. Upgrading to the Starter plan ($7/mo) ensures always-on, instant OTP delivery.
+
+---
+
+### 6.3 Rollback Plan
+
+1. **Frontend UI Glitch:**
+   Navigate to Vercel Dashboard → **Deployments** → select previous healthy deployment → click **Promote to Production**. Takes < 30 seconds with 0 downtime.
+2. **Backend API Regression:**
+   Navigate to Render Dashboard → `reach-api` → **Deploys** → select previous commit → click **Redeploy**.
+3. **Database Migration Downgrade:**
+   If a newly applied Alembic migration needs reverting:
+   ```bash
+   venv\Scripts\alembic downgrade -1
+   ```
+
+---
+
+## 7. Maintenance & Disaster Recovery
+
+- **Automatic Migrations:** Render runs `alembic upgrade head` on every deploy.
+- **Inspecting Data:** Use the Supabase **Table Editor** to view contacts, users, hubs, and attendance logs in real time.
+- **Log Streaming:** View live backend logs in Render under **Logs**.
+- **Database Backups:** Use the automated cron script in [`scripts/ops/backup.sh`](file:///c:/Users/pc/Desktop/reach/scripts/ops/backup.sh) for offsite pg_dump snapshots.

@@ -1,5 +1,8 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/v1/:path*", "destination": "https://reach-api-xg6c.onrender.com/v1/:path*" },
+    { "source": "/((?!v1/).*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

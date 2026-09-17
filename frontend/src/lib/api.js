@@ -226,7 +226,7 @@ export const api = {
 
   // Minister
   getMinisterVolunteers()  { return request('GET', '/minister/volunteers'); },
-  getDemographics()        { return request('GET', '/minister/demographics'); },
+  getDemographics(hubId)   { return request('GET', `/minister/demographics${hubId ? `?hub_id=${encodeURIComponent(hubId)}` : ''}`); },
   listCampaigns()          { return request('GET', '/campaigns'); },
   createCampaign(b)        { return request('POST', '/campaigns', b); },
   archiveCampaign(id)      { return request('POST', `/campaigns/${id}/archive`); },

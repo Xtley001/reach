@@ -21,6 +21,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("OTP_PROVIDER", "console")
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("JWT_SECRET", "test-secret-not-for-production")
+os.environ["REDIS_URL"] = ""
 
 from sqlalchemy import create_engine, CheckConstraint
 from sqlalchemy.orm import sessionmaker
