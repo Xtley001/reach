@@ -374,7 +374,9 @@ html, body {
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────────────── */
-button { font-family: var(--font-sans); cursor: pointer; }
+/* touch-action: manipulation kills the 300ms tap delay on touch devices */
+button { font-family: var(--font-sans); cursor: pointer; touch-action: manipulation; }
+a     { touch-action: manipulation; }
 
 .btn {
   display: inline-flex;
@@ -389,10 +391,15 @@ button { font-family: var(--font-sans); cursor: pointer; }
   height: 40px;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background 0.12s, opacity 0.12s, border-color 0.12s;
+  transition: background 0.12s, opacity 0.12s, border-color 0.12s, transform 0.08s;
   white-space: nowrap;
   text-decoration: none;
+  /* Item 33 (preview): physical press feedback for touch */
+  -webkit-tap-highlight-color: transparent;
 }
+/* Item 33: scale-down on :active so every button tap feels physically acknowledged */
+.btn:active:not(:disabled) { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) { .btn:active:not(:disabled) { transform: none; } }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .btn-sm { height: 32px; font-size: 12px; padding: 0 var(--space-3); }
@@ -591,9 +598,15 @@ button { font-family: var(--font-sans); cursor: pointer; }
   border: 1px solid var(--border);
   color: var(--text-2);
   cursor: pointer;
-  transition: all 0.12s;
+  /* Item 16: transition includes transform for press feedback */
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
+/* Item 16: scale-down on press so single-tap feels physically acknowledged */
+.tag-chip:active:not(:disabled) { transform: scale(0.95); }
+@media (prefers-reduced-motion: reduce) { .tag-chip:active:not(:disabled) { transform: none; } }
 .tag-chip:disabled { opacity: 0.6; cursor: default; }
 .tag-chip.active {
   background: color-mix(in srgb, var(--chip-color, var(--accent)) 16%, var(--bg));

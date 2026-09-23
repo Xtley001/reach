@@ -278,7 +278,7 @@ export default function BulkAddContacts({ onDone }) {
 
         <button
           className="btn btn-ghost btn-full"
-          onClick={addRow}
+          onClick={() => addRows(5)}
           style={{ marginBottom: 12 }}
         >
           + Add Row
