@@ -16,6 +16,7 @@ export default function ChannelToggle({ channel, onChange }) {
         <button
           key={ch}
           type="button"
+          aria-pressed={channel === ch}
           onClick={() => onChange(ch)}
           style={{
             flex: 1,
@@ -29,6 +30,8 @@ export default function ChannelToggle({ channel, onChange }) {
             background: channel === ch ? 'var(--accent)' : 'transparent',
             color: channel === ch ? 'var(--accent-fg)' : 'var(--text-2)',
             transition: 'all 0.15s',
+            // Item 9: box-shadow makes selection obvious beyond colour alone
+            boxShadow: channel === ch ? '0 1px 4px rgba(0,0,0,0.15)' : 'none',
           }}
         >
           {ch === 'sms' ? 'Phone' : 'Email'}

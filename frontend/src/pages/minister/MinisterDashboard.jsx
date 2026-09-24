@@ -295,7 +295,7 @@ export default function MinisterDashboard() {
               <div style={{ display: 'flex', gap: 8 }}>
                 {['sms','email'].map(ch => (
                   <button key={ch} onClick={() => setInviteForm(f => ({ ...f, channel: ch }))}
-                    style={{ flex: 1, height: 40, border: `1px solid ${inviteForm.channel === ch ? 'var(--accent)' : 'var(--border)'}`, background: inviteForm.channel === ch ? 'var(--accent)' : 'transparent', color: inviteForm.channel === ch ? '#fff' : 'var(--text-2)', borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
+                    style={{ flex: 1, height: 40, border: `1px solid ${inviteForm.channel === ch ? 'var(--accent)' : 'var(--border)'}`, background: inviteForm.channel === ch ? 'var(--accent)' : 'transparent', color: inviteForm.channel === ch ? 'var(--accent-fg)' : 'var(--text-2)', borderRadius: 'var(--radius)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13 }}>
                     {ch === 'sms' ? 'Phone' : 'Email'}
                   </button>
                 ))}

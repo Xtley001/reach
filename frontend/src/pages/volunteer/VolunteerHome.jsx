@@ -111,7 +111,7 @@ function FlameIcon() {
   );
 }
 
-export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenContact }) {
+export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenContact, lastSyncedAt }) {
   const navigate = useNavigate();
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -177,7 +177,7 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
 
   return (
     <div className="page-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      {/* Sync badge */}
+      {/* Sync badge + last-synced timestamp (Item 97) */}
       {(pending > 0 || syncing) && (
         <div
           onClick={onSync}
@@ -191,6 +191,15 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
           <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
             {syncing ? 'Syncing…' : `${pending} pending`}
           </span>
+        </div>
+      )}
+      {/* Item 97: subtle "last synced" so users always know their data state */}
+      {lastSyncedAt && !syncing && (
+        <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: -8, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+          Synced {lastSyncedAt.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
         </div>
       )}
 

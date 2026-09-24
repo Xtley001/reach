@@ -155,12 +155,25 @@ export default function LoginPage({ requiredRole }) {
       }
 
       await refreshUser();
-      const dest = requiredRole
+      let dest = requiredRole
         ? cfg.destination
         : data.role === 'hub_leader'  ? '/hub/dashboard'
         : data.role === 'minister'    ? '/admin-panel/dashboard'
         : data.status === 'pending'   ? '/pending'
         : '/vol/home';
+
+      // Item 98: restore previous page on re-login after session expiry
+      try {
+        const saved = sessionStorage.getItem('reach:return_to');
+        if (saved) {
+          sessionStorage.removeItem('reach:return_to');
+          // Only redirect if valid relative path and not auth page
+          if (saved.startsWith('/') && !saved.startsWith('/login') && !saved.startsWith('/signup')) {
+            dest = saved;
+          }
+        }
+      } catch {}
+
       navigate(dest, { replace: true });
     } catch (e) {
       setOtpError(true);

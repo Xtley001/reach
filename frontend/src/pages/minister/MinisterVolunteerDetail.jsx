@@ -7,16 +7,8 @@ import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
 import { Spinner, StatusBadge, Icon } from '../../components/UI';
 
-const STATUS_LABELS = {
-  message_sent:'Message Sent', coming:'Coming', undecided:'Undecided',
-  not_coming:'Not Coming', no_answer:'No Answer', wrong_number:'Wrong Number',
-  needs_transport:'Needs Transport', unreachable:'Unreachable',
-};
-const STATUS_COLORS = {
-  coming:'#4ade80', message_sent:'#60a5fa', undecided:'#fbbf24',
-  not_coming:'#f87171', no_answer:'#a78bfa', needs_transport:'#fb923c',
-  wrong_number:'#94a3b8', unreachable:'#64748b',
-};
+import { STATUS_LABELS } from '../../lib/labels';
+import { getStatusColor } from '../../lib/statusColors';
 
 export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel = 'Back' }) {
   const [data,    setData]    = useState(null);
@@ -115,7 +107,7 @@ export default function MinisterVolunteerDetail({ volunteerId, onBack, backLabel
                   </div>
                   <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
                     {c.current_status && (
-                      <span style={{ fontSize:10, padding:'2px 8px', borderRadius:4, background:`${STATUS_COLORS[c.current_status]||'#666'}20`, color:STATUS_COLORS[c.current_status]||'var(--td)', border:`1px solid ${STATUS_COLORS[c.current_status]||'#666'}40` }}>
+                      <span style={{ fontSize:10, padding:'2px 8px', borderRadius:4, background:`${getStatusColor(c.current_status)}20`, color:getStatusColor(c.current_status), border:`1px solid ${getStatusColor(c.current_status)}40` }}>
                         {STATUS_LABELS[c.current_status] || c.current_status}
                       </span>
                     )}

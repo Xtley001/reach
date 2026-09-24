@@ -90,7 +90,7 @@ export default function HubDetail({ hubId: propHubId, onBack, onSelectVolunteer 
 
           {/* Progress */}
           <div style={{ height:4, background:'var(--border)', borderRadius:2, overflow:'hidden' }}>
-            <div style={{ height:'100%', width:`${confirmedPct}%`, background:'#4ade80', borderRadius:2, transition:'width .4s' }} />
+            <div style={{ height:'100%', width:`${confirmedPct}%`, background:'var(--green)', borderRadius:2, transition:'width .4s' }} />
           </div>
           <div style={{ fontSize:10, color:'var(--tf)', marginTop:4 }}>{confirmedPct}% confirmed of all contacts</div>
         </div>
@@ -140,7 +140,7 @@ function VolunteerMiniCard({ v, onClick }) {
           <span style={{ color:'var(--tf)' }}>Active {lastActive}</span>
         </div>
         <div style={{ marginTop:5, height:2, background:'var(--border)', borderRadius:1, overflow:'hidden', maxWidth:160 }}>
-          <div style={{ height:'100%', width:`${pct}%`, background:'#4ade80', borderRadius:1 }} />
+          <div style={{ height:'100%', width:`${pct}%`, background:'var(--green)', borderRadius:1 }} />
         </div>
       </div>
       <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:8 }}>

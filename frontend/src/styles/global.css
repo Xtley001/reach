@@ -134,8 +134,19 @@ h1, .h1 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0
 h2, .h2 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.018em; }
 .field-label { font-size: 12px; font-weight: 600; letter-spacing: 0.01em; color: var(--text-2); }
 
+/* Item 78: Complete sanctioned type scale — 9 steps total.
+   Use ONLY these steps, not arbitrary px values.
+   --text-2xs (10) — timestamps, meta labels, sub-badges
+   --text-xs  (11) — field labels, captions, badges
+   --text-sm  (13) — secondary body, list items, sub-actions
+   --text-base(14) — primary body copy, form fields
+   --text-md  (16) — section headings, medium emphasis
+   --text-lg  (18) — large sub-heads
+   --text-xl  (22) — page title-level text
+   --text-2xl (28) — stat values, hero labels
+   --text-hero     — clamp(40px, 5.5vw, 64px), H1 only */
 :root {
-
+  --text-2xs:  10px;
   --text-xs:   11px;
   --text-sm:   13px;
   --text-base: 14px;

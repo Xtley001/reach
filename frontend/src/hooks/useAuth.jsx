@@ -70,6 +70,11 @@ export function AuthProvider({ children }) {
         // G-84: refresh failed here too — give a clear signal rather than a
         // silent redirect, so a volunteer mid-call never wonders whether
         // their last few taps actually saved.
+        // Item 98: preserve return location so user lands right back where they were
+        const cur = window.location.pathname + window.location.search;
+        if (cur && !cur.startsWith('/login') && !cur.startsWith('/signup') && cur !== '/') {
+          try { sessionStorage.setItem('reach:return_to', cur); } catch {}
+        }
         toastError("Your session ended — please log back in.");
         tokenStore.clear();
         setUser(null);
@@ -82,6 +87,11 @@ export function AuthProvider({ children }) {
       // The request() interceptor already tried a refresh-and-retry before
       // giving up and dispatching this event — if we're hearing it, the
       // session is genuinely over. Let the user know why, don't just vanish.
+      // Item 98: preserve return location so user lands right back where they were
+      const cur = window.location.pathname + window.location.search;
+      if (cur && !cur.startsWith('/login') && !cur.startsWith('/signup') && cur !== '/') {
+        try { sessionStorage.setItem('reach:return_to', cur); } catch {}
+      }
       toastError("Your session ended — please log back in.");
       setUser(null);
     };

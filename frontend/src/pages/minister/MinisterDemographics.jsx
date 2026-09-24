@@ -8,16 +8,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 
-const STATUS_COLORS = {
-  coming:          '#22c55e',
-  undecided:       '#3b82f6',
-  no_answer:       '#94a3b8',
-  needs_transport: '#f97316',
-  not_coming:      '#ef4444',
-  message_sent:    '#a855f7',
-  unreachable:     '#64748b',
-  wrong_number:    '#cbd5e1',
-};
+import { STATUS_COLORS, getStatusColor } from '../../lib/statusColors';
 
 const TOOLTIP_STYLE = {
   contentStyle: {
@@ -112,7 +103,7 @@ export default function MinisterDemographics() {
                   paddingAngle={2}
                 >
                   {statusData.map((entry, i) => (
-                    <Cell key={i} fill={STATUS_COLORS[entry.key] || '#94a3b8'} />
+                    <Cell key={i} fill={getStatusColor(entry.key)} />
                   ))}
                 </Pie>
                 <Tooltip {...TOOLTIP_STYLE} formatter={(v, n) => [v, n]} />
@@ -121,7 +112,7 @@ export default function MinisterDemographics() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: 8 }}>
               {statusData.map(s => (
                 <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: STATUS_COLORS[s.key] || 'var(--border)', flexShrink: 0 }} />
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: getStatusColor(s.key), flexShrink: 0 }} />
                   <span style={{ color: 'var(--text-2)' }}>{s.name}</span>
                   <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 700 }}>{s.count}</span>
                 </div>

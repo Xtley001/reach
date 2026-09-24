@@ -84,7 +84,7 @@ export default function HubContacts() {
                       <div className="contact-name">
                         {contact.name}
                         {contact.is_incomplete && (
-                          <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--amber, #f59e0b)', fontWeight: 500 }}>Incomplete</span>
+                          <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--amber)', fontWeight: 500 }}>Incomplete</span>
                         )}
                       </div>
                       <div className="contact-loc">{contact.location || '—'}</div>

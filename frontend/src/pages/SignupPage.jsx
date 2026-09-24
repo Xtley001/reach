@@ -164,6 +164,8 @@ export default function SignupPage() {
     setLoading(false);
   }
 
+  const [successMoment, setSuccessMoment] = useState(false);
+
   /* Step 3: OTP + finalize */
   async function verifyAndCreate() {
     if (otp.length < 6) { toast('Enter the full 6-digit code', 'error'); return; }
@@ -178,6 +180,9 @@ export default function SignupPage() {
           toast('Account created. You can add your photo later from your profile.', 'warning', 4000);
         }
       }
+      // Item 10: Branded "you're in" moment before dropping into PendingScreen
+      setSuccessMoment(true);
+      await new Promise(r => setTimeout(r, 600));
       await refreshUser();
       navigate('/pending', { replace: true });
     } catch (e) {
@@ -235,7 +240,26 @@ export default function SignupPage() {
           <AuthProgressBar step={step} total={TOTAL_STEPS} />
 
           <div style={{ animation: 'pageIn 0.18s ease-out both' }}>
-
+            {successMoment ? (
+              <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: '50%',
+                  background: 'color-mix(in srgb, var(--green) 15%, var(--bg))',
+                  border: '1px solid var(--green)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px', color: 'var(--green)',
+                }}>
+                  <Icon name="check" size={28} strokeWidth={2.5} />
+                </div>
+                <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>
+                  You're in, {name.split(' ')[0] || name}!
+                </h1>
+                <p style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                  Setting up your profile…
+                </p>
+              </div>
+            ) : (
+              <>
             {/* ── Step 0: Name + Avatar ── */}
             {step === 0 && (
               <form onSubmit={e => { e.preventDefault(); stepNameDone(); }} noValidate>
@@ -376,7 +400,8 @@ export default function SignupPage() {
                 {summaryCard}
               </OtpStep>
             )}
-
+            </>
+          )}
           </div>
         </div>
       </div>

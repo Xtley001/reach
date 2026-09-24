@@ -252,9 +252,9 @@ export default function ContactsList() {
           style={{
             display: 'flex', alignItems: 'center', gap: 8, width: '100%',
             margin: '0 var(--space-4)', marginTop: -4, marginBottom: 8,
-            padding: '10px 12px', border: '1px solid var(--amber, #f59e0b)',
-            borderRadius: 'var(--radius)', background: 'color-mix(in srgb, var(--amber, #f59e0b) 12%, var(--bg))',
-            color: 'var(--amber, #f59e0b)', fontSize: 12.5, fontWeight: 500,
+            padding: '10px 12px', border: '1px solid var(--amber)',
+            borderRadius: 'var(--radius)', background: 'color-mix(in srgb, var(--amber) 12%, var(--bg))',
+            color: 'var(--amber)', fontSize: 12.5, fontWeight: 500,
             fontFamily: 'var(--font-sans)', cursor: 'pointer', textAlign: 'left',
           }}
         >
@@ -290,7 +290,7 @@ export default function ContactsList() {
                   <div className="contact-name">
                     {c.name}
                     {c.is_incomplete && (
-                      <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--amber, #f59e0b)', fontWeight: 500 }}>
+                      <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--amber)', fontWeight: 500 }}>
                         Incomplete
                       </span>
                     )}

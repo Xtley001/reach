@@ -66,11 +66,13 @@ export default function MinisterExports() {
     try {
       await api.downloadExport(exp.path);
       setLastExported(le => ({ ...le, [exp.id]: new Date() }));
-      toast('Export started', 'success');
+      // Item 99: show "✓ Downloaded" for 2s before returning to idle
+      setDownloading(`${exp.id}:done`);
+      setTimeout(() => setDownloading(null), 2000);
     } catch (e) {
       toast(e.message || 'Export failed', 'error');
+      setDownloading(null);
     }
-    setDownloading(null);
   }
 
   return (
@@ -99,11 +101,22 @@ export default function MinisterExports() {
             <button
               className="btn btn-outline btn-sm"
               onClick={() => download(exp)}
-              disabled={!exp.available || downloading === exp.id}
+              disabled={!exp.available || downloading === exp.id || downloading === `${exp.id}:done`}
               title={!exp.available ? 'Coming soon' : 'Download CSV'}
+              style={downloading === `${exp.id}:done` ? { borderColor: 'var(--green)', color: 'var(--green)' } : {}}
             >
               {downloading === exp.id ? (
-                <div className="spinner" style={{ width: 14, height: 14 }} />
+                // Item 99: "Generating…" spinner while in-flight
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div className="spinner" style={{ width: 12, height: 12 }} />
+                  Generating…
+                </span>
+              ) : downloading === `${exp.id}:done` ? (
+                // Item 99: "✓ Downloaded" for 2s after success
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  Downloaded
+                </span>
               ) : (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <DownloadIcon /> CSV

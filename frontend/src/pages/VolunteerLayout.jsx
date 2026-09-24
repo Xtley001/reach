@@ -38,6 +38,8 @@ export default function VolunteerLayout() {
   const [syncing, setSyncing]           = useState(false);
   // Item 51: persistent offline banner
   const [isOnline, setIsOnline]         = useState(navigator.onLine);
+  // Item 97: last-synced timestamp for VolunteerHome
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
   // FIX-009: track a contact ID opened from the home screen's recent list
   const [openContactId, setOpenContactId] = useState(null);
 
@@ -64,6 +66,7 @@ export default function VolunteerLayout() {
         const { synced = 0 } = await syncPendingItems();
         const q = await getPendingSync().catch(() => []);
         setPending(q.length);
+        setLastSyncedAt(new Date()); // Item 97
         toast(
           synced > 0
             ? `${synced} contact${synced !== 1 ? 's' : ''} synced`
@@ -134,6 +137,7 @@ export default function VolunteerLayout() {
               pending={pending}
               syncing={syncing}
               onSync={handleSync}
+              lastSyncedAt={lastSyncedAt}
               onNav={k => k === 'add' ? setAddOpen(true) : navigate(`/vol/${k}`)}
               onOpenContact={(contactId) => {
                 // FIX-009: Navigate to contacts page with the contact pre-selected
