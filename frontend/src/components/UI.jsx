@@ -1,7 +1,7 @@
 /**
  * REACH — Core UI components
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { StatusBadge, DecisionBadge, Badge } from './ui/Badge';
 import Icon from './ui/Icon';
 import PageHeader from './ui/PageHeader';
@@ -33,11 +33,78 @@ export function EmptyState({ icon, message = 'Nothing here yet.', hint }) {
   );
 }
 
+/**
+ * Item 94: useFocusTrap — locks focus within open modal/dialog and restores on close
+ */
+export function useFocusTrap(open, onClose) {
+  const ref = useRef(null);
+  const prevFocusRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    prevFocusRef.current = document.activeElement;
+
+    const el = ref.current;
+    if (!el) return;
+
+    // Focus the first focusable element or the dialog itself
+    const focusables = el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusables.length > 0) {
+      focusables[0].focus();
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose?.();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const currentFocusables = Array.from(el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+          .filter(node => !node.disabled && node.offsetParent !== null);
+        if (currentFocusables.length === 0) return;
+        const first = currentFocusables[0];
+        const last = currentFocusables[currentFocusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (prevFocusRef.current && typeof prevFocusRef.current.focus === 'function') {
+        prevFocusRef.current.focus();
+      }
+    };
+  }, [open, onClose]);
+
+  return ref;
+}
+
 export function Modal({ open, onClose, title, children }) {
+  const modalRef = useFocusTrap(open, onClose);
   if (!open) return null;
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="modal"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof title === 'string' ? title : 'Dialog'}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div className="modal-title">{title}</div>
           <button className="modal-close" onClick={onClose} aria-label="Close dialog">×</button>
@@ -105,10 +172,19 @@ export function PageSkeleton({ rows = 5 }) {
 }
 
 export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', danger = false, onConfirm, onCancel }) {
+  const dialogRef = useFocusTrap(open, onCancel);
   if (!open) return null;
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onCancel} role="presentation">
+      <div
+        className="modal"
+        ref={dialogRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={typeof title === 'string' ? title : 'Confirm'}
+        style={{ maxWidth: 360 }}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="modal-header">
           <span className="modal-title">{title}</span>
           <button className="modal-close" onClick={onCancel} aria-label="Close">×</button>

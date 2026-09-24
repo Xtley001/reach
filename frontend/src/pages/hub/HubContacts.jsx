@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { api } from '../../lib/api';
 import { cached, TTL } from '../../lib/cache';
 import { StatusBadge, PageSkeleton, EmptyState, Modal, TagChecklist, CallTimeline, Icon } from '../../components/UI';
@@ -8,6 +8,7 @@ export default function HubContacts() {
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
+  const deferredSearch          = useDeferredValue(search); // Item 85: deferred search
   const [expanded, setExpanded] = useState({});
   const [detail, setDetail]     = useState(null); // F-73/B-25: contact selected for tags + call timeline
   const [tagDefs, setTagDefs]   = useState([]);
@@ -22,8 +23,8 @@ export default function HubContacts() {
 
   const grouped = useMemo(() => {
     const filtered = contacts.filter(c => {
-      if (!search) return true;
-      const q = search.toLowerCase();
+      if (!deferredSearch) return true;
+      const q = deferredSearch.toLowerCase();
       return c.name.toLowerCase().includes(q) || (c.location || '').toLowerCase().includes(q);
     });
     const map = {};
@@ -33,13 +34,14 @@ export default function HubContacts() {
       map[key].contacts.push(c);
     });
     return Object.values(map).sort((a, b) => b.contacts.length - a.contacts.length);
-  }, [contacts, search]);
+  }, [contacts, deferredSearch]);
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-title">Hub Contacts</div>
         <input
+          aria-label="Search hub contacts by name or location"
           className="field-input"
           style={{ marginTop: 10 }}
           placeholder="Search name or area…"

@@ -139,10 +139,14 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
       .then(d => setRecent((d.contacts || []).slice(0, 5)))
       .catch(() => {});
 
-    // Prefetch contacts after 1.5s idle
-    const t = setTimeout(() =>
-      cached('contacts:mine', () => api.listContacts(), TTL.CONTACTS).catch(() => {}),
-    1500);
+    // Prefetch contacts data and next screen chunks after idle (Item 90)
+    const t = setTimeout(() => {
+      cached('contacts:mine', () => api.listContacts(), TTL.CONTACTS).catch(() => {});
+      // Prefetch common next routes so transitions have zero delay
+      import('./AddContact').catch(() => {});
+      import('./ContactsList').catch(() => {});
+      import('./CallQueue').catch(() => {});
+    }, 1200);
     return () => clearTimeout(t);
   }, []);
 

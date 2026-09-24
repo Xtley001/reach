@@ -16,11 +16,12 @@ import SignupPage     from './pages/SignupPage';
 import JoinPage       from './pages/JoinPage';
 import PendingScreen  from './pages/PendingScreen';
 import RejectedScreen from './pages/RejectedScreen';
-import VolunteerLayout from './pages/VolunteerLayout';
-import HubLeaderLayout from './pages/HubLeaderLayout';
-import MinisterLayout  from './pages/MinisterLayout';
 
-const AttendLayout  = lazy(() => import('./pages/AttendLayout'));
+// Item 82: Route-level code splitting across all role layouts
+const VolunteerLayout = lazy(() => import('./pages/VolunteerLayout'));
+const HubLeaderLayout = lazy(() => import('./pages/HubLeaderLayout'));
+const MinisterLayout  = lazy(() => import('./pages/MinisterLayout'));
+const AttendLayout    = lazy(() => import('./pages/AttendLayout'));
 const DecisionsLayout = lazy(() => import('./pages/DecisionsLayout'));
 
 // H-91: rotates through a few lines rather than always showing the same

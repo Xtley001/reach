@@ -198,6 +198,19 @@ html, body {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
+/* ── Item 92: Accessible keyboard focus rings ────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
+
 #root {
   height: 100%;
   display: flex;

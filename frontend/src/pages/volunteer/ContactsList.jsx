@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useDeferredValue } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cached, invalidate, TTL } from '../../lib/cache';
@@ -43,6 +43,8 @@ export default function ContactsList() {
   const [filter, setFilter]     = useState(() => location.state?.initialFilter || '');
   const [contacts, setContacts] = useState([]);
   const [search, setSearch]     = useState('');
+  const deferredSearch          = useDeferredValue(search); // Item 85: non-blocking deferred search
+  const [visibleLimit, setVisibleLimit] = useState(50); // Item 86: virtual list windowing
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(false); // NEW-001: inline error state
   const [selected, setSelected] = useState(null);
@@ -193,10 +195,12 @@ export default function ContactsList() {
   }
 
   const filtered = contacts.filter(c => {
-    if (!search) return true;
-    const q = search.toLowerCase();
+    if (!deferredSearch) return true;
+    const q = deferredSearch.toLowerCase();
     return c.name.toLowerCase().includes(q) || (c.location || '').toLowerCase().includes(q);
   });
+
+  const visibleContacts = filtered.slice(0, visibleLimit);
 
   const filterCounts = {};
   FILTERS.forEach(f => {
@@ -220,18 +224,20 @@ export default function ContactsList() {
         filters={
           <>
             <input
+              id="contacts-search-input"
+              aria-label="Search contacts by name or location"
               className="field-input"
               style={{ marginBottom: 10 }}
               placeholder="Search name or area…"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setVisibleLimit(50); }}
             />
             <div className="filter-row">
               {FILTERS.map(f => (
                 <button
                   key={f.id}
                   className={`filter-tag${filter === f.id ? ' active' : ''}`}
-                  onClick={() => setFilter(f.id)}
+                  onClick={() => { setFilter(f.id); setVisibleLimit(50); }}
                 >
                   {f.label}
                   {filterCounts[f.id] > 0 && (
@@ -284,7 +290,7 @@ export default function ContactsList() {
           <EmptyState icon={<Icon name="people" size={32} />} message={search ? 'No contacts match.' : 'No contacts yet. Add your first!'} />
         ) : (
           <div>
-            {filtered.map(c => (
+            {visibleContacts.map(c => (
               <div key={c.id} className="contact-row" onClick={() => openContact(c)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="contact-name">
@@ -323,6 +329,7 @@ export default function ContactsList() {
                       href={buildWAUrl(c.phone, templates[0], c.name)}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`Send WhatsApp message to ${c.name}`}
                       onClick={e => e.stopPropagation()}
                       style={{
                         fontSize: 11, padding: '4px 10px', borderRadius: 'var(--radius-sm)',
@@ -334,6 +341,7 @@ export default function ContactsList() {
                     </a>
                     <a
                       href={`tel:${c.phone}`}
+                      aria-label={`Call ${c.name}`}
                       onClick={e => handleInitiateCall(e, c)}
                       style={{
                         fontSize: 11, padding: '4px 10px', borderRadius: 'var(--radius-sm)',
@@ -347,6 +355,18 @@ export default function ContactsList() {
                 </div>
               </div>
             ))}
+
+            {filtered.length > visibleLimit && (
+              <div style={{ padding: 'var(--space-4)', textAlign: 'center' }}>
+                <button
+                  className="btn btn-outline btn-full"
+                  style={{ fontSize: 13, height: 40 }}
+                  onClick={() => setVisibleLimit(lim => lim + 50)}
+                >
+                  Show more contacts ({filtered.length - visibleLimit} remaining)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
