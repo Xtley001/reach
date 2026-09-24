@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cached, TTL } from '../../lib/cache';
-import { PageSkeleton, Modal, TagCountsChart, ReceptivityChart, AvailabilityChart } from '../../components/UI';
+import { StatCardSkeleton, Modal, TagCountsChart, ReceptivityChart, AvailabilityChart, useMinLoadTime } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 function Countdown({ targetDate }) {
@@ -97,10 +97,19 @@ export default function MinisterDashboard() {
     } catch (e) { toast(e.message || 'Failed', 'error'); }
   }
 
-  if (loading) return (
+  // Item 24: prevent one-frame flash — show skeleton for at least 350ms
+  const showSkeleton = useMinLoadTime(loading, 350);
+
+  if (showSkeleton) return (
     <div className="page">
       <div className="page-header"><div className="page-title">Dashboard</div></div>
-      <div className="page-body"><PageSkeleton /></div>
+      <div className="page-body">
+        {/* Item 23: StatCardSkeleton matches real stat-card proportions */}
+        <StatCardSkeleton />
+        <div className="skeleton" style={{ height: 20, width: '60%', marginBottom: 'var(--space-3)' }} />
+        <div className="skeleton" style={{ height: 80, borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-3)' }} />
+        <div className="skeleton" style={{ height: 80, borderRadius: 'var(--radius-md)' }} />
+      </div>
     </div>
   );
 

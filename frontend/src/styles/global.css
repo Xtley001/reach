@@ -207,6 +207,26 @@ html, body {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@media (prefers-reduced-motion: reduce) {
+  .page { animation: none; }
+}
+
+/* ── List Row Stagger (Item 39) ────────────────────────────────────────────── */
+/* Usage: add class="row-fade-in" + style="--row-i: N" (0-based index, cap at 4)
+   to list row elements. Rows beyond index 4 appear instantly (--row-i clamped).
+   The animation is disabled entirely under prefers-reduced-motion. */
+@keyframes rowFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.row-fade-in {
+  animation: rowFadeIn 0.18s ease-out both;
+  animation-delay: calc(var(--row-i, 0) * 40ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-fade-in { animation: none; }
+}
+
 
 /* ── Scrollbar ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
@@ -232,8 +252,9 @@ html, body {
   border-radius: var(--radius-sm);
 }
 @keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  /* Item 26: left-to-right sweep matches natural reading direction */
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 
 /* ── Top Bar ───────────────────────────────────────────────────────────────── */
@@ -292,9 +313,14 @@ html, body {
   letter-spacing: 0.03em;       /* Less aggressive tracking per spec */
   padding: 6px 0;
   position: relative;
-  transition: color 0.15s;
+  transition: color 0.15s, opacity 0.08s;
   min-height: var(--tap-min);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
+/* Item 32: nav item press state — opacity dip is subtle on dark/light */
+.nav-item:active { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { .nav-item:active { opacity: 1; } }
 .nav-item.active {
   color: var(--accent);         /* Green active state per design spec */
 }
@@ -553,8 +579,12 @@ a     { touch-action: manipulation; }
   cursor: pointer;
   transition: background 0.1s;
   min-height: var(--tap-min);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .contact-row:hover { background: var(--bg-2); }
+/* Item 32: contact row press state — bg shift since rows are full-width */
+.contact-row:active { background: var(--bg-3); }
 .contact-row:last-child { border-bottom: none; }
 .contact-name  { font-size: 14px; font-weight: 500; color: var(--text); }
 .contact-loc   { font-size: 12px; color: var(--text-2); margin-top: 2px; }
@@ -573,14 +603,19 @@ a     { touch-action: manipulation; }
   border: 1px solid var(--border);
   color: var(--text-2);
   cursor: pointer;
-  transition: all 0.12s;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.08s;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .filter-tag.active, .filter-tag:hover {
   background: var(--accent);
   color: var(--accent-fg);
   border-color: var(--accent);
 }
+/* Item 32: filter pill pressed state */
+.filter-tag:active:not(.active) { transform: scale(0.95); }
+@media (prefers-reduced-motion: reduce) { .filter-tag:active { transform: none; } }
 
 /* ── Tag chips (B-21) ─────────────────────────────────────────────────────── */
 .tag-checklist { display: flex; gap: var(--space-2); flex-wrap: wrap; }

@@ -1,7 +1,14 @@
 /**
  * REACH — Gold confetti burst (CSS-only, no library)
+ *
+ * Item 36: skips entirely when prefers-reduced-motion is set —
+ * users who have that OS preference flagged (vestibular disorders,
+ * epilepsy, general sensitivity) should never see flying particles.
  */
 export function confettiBurst(originEl) {
+  // Item 36: respect the system accessibility preference
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
   const colors = ['var(--gold)', 'var(--amber)', '#E8C46A', '#C9A84C', '#F0D080'];
   const rect = originEl
     ? originEl.getBoundingClientRect()

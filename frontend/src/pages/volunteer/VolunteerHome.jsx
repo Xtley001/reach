@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cached, TTL } from '../../lib/cache';
-import { SkeletonCard, StatusBadge } from '../../components/UI';
+import { StatCardSkeleton, StatusBadge, useMinLoadTime, useCountUp } from '../../components/UI';
 
 const VERSES = [
   { ref: 'Matthew 28:19', text: 'Go therefore and make disciples of all nations, baptising them in the name of the Father and of the Son and of the Holy Spirit.' },
@@ -157,9 +157,21 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
 
   const stats = data || { total_contacts: 0, confirmed: 0, awaiting: 0, unreached: 0, streak_days: 0 };
 
-  if (loading) return (
+  // Item 45: count-up hooks must be at top level (Rules of Hooks), not inside JSX
+  const countTotal     = useCountUp(stats.total_contacts);
+  const countConfirmed = useCountUp(stats.confirmed);
+  const countAwaiting  = useCountUp(stats.awaiting);
+  const countUnreached = useCountUp(stats.unreached);
+
+  // Item 24: prevent one-frame flash — show skeleton for at least 350ms
+  const showSkeleton = useMinLoadTime(loading, 350);
+
+  if (showSkeleton) return (
     <div className="page-body">
-      <SkeletonCard /><SkeletonCard /><SkeletonCard />
+      {/* Item 23: StatCardSkeleton matches real stat-card proportions */}
+      <StatCardSkeleton />
+      <div className="skeleton" style={{ height: 48, borderRadius: 'var(--radius)', marginBottom: 'var(--space-3)' }} />
+      <div className="skeleton" style={{ height: 80, borderRadius: 'var(--radius-md)' }} />
     </div>
   );
 
@@ -182,22 +194,22 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
         </div>
       )}
 
-      {/* Stats */}
+      {/* Stats — Item 45: values tween from 0 to real value on first render */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-value">{stats.total_contacts}</div>
+          <div className="stat-value">{countTotal}</div>
           <div className="stat-label">Total Contacts</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--green)' }}>{stats.confirmed}</div>
+          <div className="stat-value" style={{ color: 'var(--green)' }}>{countConfirmed}</div>
           <div className="stat-label">Confirmed</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{stats.awaiting}</div>
+          <div className="stat-value">{countAwaiting}</div>
           <div className="stat-label">Msg Sent</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{stats.unreached}</div>
+          <div className="stat-value">{countUnreached}</div>
           <div className="stat-label">Unreached</div>
         </div>
       </div>
@@ -251,8 +263,13 @@ export default function VolunteerHome({ pending, syncing, onSync, onNav, onOpenC
             Recent
           </div>
           <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-            {recent.map(c => (
-              <div key={c.id} className="contact-row" onClick={() => onOpenContact ? onOpenContact(c.id) : onNav('contacts')}>
+            {recent.map((c, i) => (
+              <div
+                key={c.id}
+                className="contact-row row-fade-in"
+                style={{ '--row-i': Math.min(i, 4) }}
+                onClick={() => onOpenContact ? onOpenContact(c.id) : onNav('contacts')}
+              >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="contact-name">{c.name}</div>
                   <div className="contact-loc">{c.location}</div>
