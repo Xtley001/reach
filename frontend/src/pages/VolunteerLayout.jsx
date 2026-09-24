@@ -36,23 +36,40 @@ export default function VolunteerLayout() {
   const [showAddMenu, setShowAddMenu]   = useState(false);
   const [pending, setPending]           = useState(0);
   const [syncing, setSyncing]           = useState(false);
+  // Item 51: persistent offline banner
+  const [isOnline, setIsOnline]         = useState(navigator.onLine);
   // FIX-009: track a contact ID opened from the home screen's recent list
   const [openContactId, setOpenContactId] = useState(null);
 
   useEffect(() => {
     getPendingSync().then(q => setPending(q.length)).catch(() => {});
+    // Item 51: listen to online/offline events for banner
+    const handleOnline  = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online',  handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online',  handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // FIX-008: onSync was undefined — now wired to the actual sync utility
+  // Item 52: toast now reports exact number of contacts synced, not just "Synced"
   async function handleSync() {
     if (syncing) return;
     setSyncing(true);
     try {
       if (typeof syncPendingItems === 'function') {
-        await syncPendingItems();
+        const { synced = 0 } = await syncPendingItems();
         const q = await getPendingSync().catch(() => []);
         setPending(q.length);
-        toast('Synced successfully', 'success');
+        toast(
+          synced > 0
+            ? `${synced} contact${synced !== 1 ? 's' : ''} synced`
+            : 'Already up to date',
+          'success'
+        );
       }
     } catch {
       toast('Sync failed. Will retry automatically.', 'error');
@@ -98,6 +115,16 @@ export default function VolunteerLayout() {
             <ThemeToggle />
           </div>
         </div>
+        {/* Item 51: offline banner — amber strip below topbar, auto-hides when back online */}
+        {!isOnline && (
+          <div className="offline-banner">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="1" y1="1" x2="23" y2="23"/>
+              <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/>
+            </svg>
+            You're offline — changes will sync when reconnected
+          </div>
+        )}
 
         {/* Page content */}
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80, WebkitOverflowScrolling: 'touch' }}>

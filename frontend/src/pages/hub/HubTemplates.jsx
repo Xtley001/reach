@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import { PageSkeleton, EmptyState, Icon } from '../../components/UI';
+import { PageSkeleton, EmptyState, Icon, ConfirmDialog } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 export default function HubTemplates() {
@@ -11,6 +11,8 @@ export default function HubTemplates() {
   const [form, setForm]           = useState({ label: '', body: '' });
   const [saving, setSaving]       = useState(false);
   const [expanded, setExpanded]   = useState(null);
+  // Item 57: ConfirmDialog state for delete action
+  const [confirmDelete, setConfirmDelete] = useState(null); // { id, label } or null
 
   function loadTemplates() {
     return api.getActiveTemplates()
@@ -67,7 +69,15 @@ export default function HubTemplates() {
   }
 
   async function remove(id) {
-    if (!window.confirm('Delete this template?')) return;
+    // Item 57/58: use ConfirmDialog instead of window.confirm
+    const target = templates.find(t => t.id === id);
+    setConfirmDelete(target ? { id, label: target.label } : { id, label: 'this template' });
+  }
+
+  async function doDelete() {
+    if (!confirmDelete) return;
+    const { id } = confirmDelete;
+    setConfirmDelete(null);
     try {
       await api.deleteTemplate(id);
       toast('Template deleted', 'success');
@@ -174,6 +184,16 @@ export default function HubTemplates() {
           </div>
         )}
       </div>
+      {/* Item 57/58: named confirm dialog */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete template?"
+        message={`Delete "${confirmDelete?.label}"? Volunteers won't be able to use it for new messages.`}
+        confirmLabel="Delete"
+        danger
+        onConfirm={doDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }

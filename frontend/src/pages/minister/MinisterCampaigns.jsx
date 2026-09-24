@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../lib/api';
-import { PageSkeleton, EmptyState, Icon } from '../../components/UI';
+import { PageSkeleton, EmptyState, Icon, ConfirmDialog } from '../../components/UI';
 import { toast } from '../../lib/toast';
 
 export default function MinisterCampaigns() {
@@ -11,6 +11,8 @@ export default function MinisterCampaigns() {
   const [saving, setSaving]       = useState(false);
   const [editing, setEditing]     = useState(null);
   const [editForm, setEditForm]   = useState({});
+  // Item 57: ConfirmDialog state for archive action
+  const [confirmArchive, setConfirmArchive] = useState(null); // { id, name } or null
 
   useEffect(() => {
     api.listCampaigns().then(d => { setCampaigns(d.campaigns || []); setLoading(false); }).catch(() => setLoading(false));
@@ -51,7 +53,16 @@ export default function MinisterCampaigns() {
   }
 
   async function archiveCampaign(id) {
-    if (!window.confirm('Archive this campaign?')) return;
+    // Item 57/58: use ConfirmDialog instead of window.confirm
+    // (confirmArchive state triggers the dialog; actual archive runs on confirm)
+    const target = campaigns.find(c => c.id === id);
+    setConfirmArchive(target ? { id, name: target.name } : { id, name: 'this campaign' });
+  }
+
+  async function doArchive() {
+    if (!confirmArchive) return;
+    const { id } = confirmArchive;
+    setConfirmArchive(null);
     try {
       await api.archiveCampaign(id);
       toast('Campaign archived', 'success');
@@ -131,6 +142,16 @@ export default function MinisterCampaigns() {
           </div>
         ))}
       </div>
+      {/* Item 57/58: named confirm dialog replaces window.confirm */}
+      <ConfirmDialog
+        open={!!confirmArchive}
+        title="Archive campaign?"
+        message={`Archive "${confirmArchive?.name}"? It will no longer be the active campaign.`}
+        confirmLabel="Archive"
+        danger
+        onConfirm={doArchive}
+        onCancel={() => setConfirmArchive(null)}
+      />
     </div>
   );
 }

@@ -118,6 +118,8 @@ export default function AddContact({ onDone }) {
   const [phoneConflict, setPhoneConflict] = useState(null);
   // Item 18: undo state — holds { id, name } of last saved contact
   const [undoPending, setUndoPending] = useState(null);
+  // Item 50: per-field blur validation errors
+  const [fieldErrors, setFieldErrors] = useState({});
   const saveBtnRef = useRef();
   // Item 15: ref to name input so we can refocus after Save & Add Another
   const nameRef = useRef();
@@ -125,6 +127,19 @@ export default function AddContact({ onDone }) {
   function set(k, v) {
     setForm(f => ({ ...f, [k]: v }));
     if (k === 'phone') setPhoneConflict(null);
+    // Item 50: clear the inline error as soon as the user starts typing in that field
+    if (fieldErrors[k]) setFieldErrors(fe => ({ ...fe, [k]: null }));
+  }
+
+  // Item 50: validate a single field on blur, setting inline error
+  function handleBlur(k) {
+    if (k === 'name' && !form.name.trim()) {
+      setFieldErrors(fe => ({ ...fe, name: 'Full name is required' }));
+    } else if (k === 'phone' && !rawPhone().trim()) {
+      setFieldErrors(fe => ({ ...fe, phone: 'Phone number is required' }));
+    } else if (k === 'location' && !form.location.trim()) {
+      setFieldErrors(fe => ({ ...fe, location: 'Area / Location is required' }));
+    }
   }
 
   // Item 13: format on change but keep raw digits for submission
@@ -246,41 +261,49 @@ export default function AddContact({ onDone }) {
           <label className="field-label">Full Name <span className="required">*</span></label>
           <input
             ref={nameRef}
-            className="field-input"
+            className={`field-input${fieldErrors.name ? ' error' : ''}`}
             placeholder="e.g. Blessing Okafor"
             value={form.name}
             onChange={e => set('name', e.target.value)}
+            onBlur={() => handleBlur('name')}
             autoCapitalize="words"
             autoComplete="name"
             autoFocus
           />
+          {fieldErrors.name && <div className="field-error">{fieldErrors.name}</div>}
         </div>
 
         {/* Item 13: type="tel" surfaces numeric keypad; live formatter adds spacing */}
         <div className="form-group">
           <label className="field-label">Phone Number <span className="required">*</span></label>
           <input
-            className={`field-input${phoneConflict ? ' error' : ''}`}
+            className={`field-input${phoneConflict || fieldErrors.phone ? ' error' : ''}`}
             placeholder="+2348012345678"
             value={form.phone}
             type="tel"
             inputMode="tel"
             autoComplete="tel"
             onChange={handlePhoneChange}
+            onBlur={() => handleBlur('phone')}
           />
           {phoneConflict && (
             <div className="field-error">{phoneConflict}</div>
+          )}
+          {!phoneConflict && fieldErrors.phone && (
+            <div className="field-error">{fieldErrors.phone}</div>
           )}
         </div>
 
         <div className="form-group">
           <label className="field-label">Area / Location <span className="required">*</span></label>
           <input
-            className="field-input"
+            className={`field-input${fieldErrors.location ? ' error' : ''}`}
             placeholder="e.g. Ikeja, Lagos"
             value={form.location}
             onChange={e => set('location', e.target.value)}
+            onBlur={() => handleBlur('location')}
           />
+          {fieldErrors.location && <div className="field-error">{fieldErrors.location}</div>}
         </div>
 
         <div className="form-group">
