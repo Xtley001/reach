@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/v1/:path*",
-      "destination": "https://reach-api-xg6c.onrender.com/v1/:path*"
+      "destination": "https://reach-api-oq68.onrender.com/v1/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://reach-api-xg6c.onrender.com/:path*"
+      "destination": "https://reach-api-oq68.onrender.com/:path*"
     },
     {
       "source": "/((?!api/|v1/).*)",
