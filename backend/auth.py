@@ -91,8 +91,9 @@ async def _dispatch_brevo(identifier: str, otp: str, channel: str) -> bool:
                 r.raise_for_status()
         else:
             from .email_client import _otp_html
+            sender_email = settings.BREVO_SENDER or "olubelachristley@gmail.com"
             payload = {
-                "sender":    {"name": "REACH", "email": settings.BREVO_SENDER or "noreply@reach-app.com"},
+                "sender":    {"name": "REACH", "email": sender_email},
                 "to":        [{"email": identifier}],
                 "subject":   f"Your REACH code: {otp}",
                 "htmlContent": _otp_html(otp),
